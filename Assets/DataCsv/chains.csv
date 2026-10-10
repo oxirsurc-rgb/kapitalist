@@ -1,0 +1,7 @@
+FromEventId,ToEventId,DelayTurns
+fuel_crisis,budget_deficit_warning,4
+pandemic_scare,economic_recovery,5
+corruption_scandal,press_freedom_crisis,3
+strike_event,street_protests,4
+refugee_wave,refugee_crisis,3
+trade_offer,economic_recovery,4

@@ -1,0 +1,42 @@
+Id,Name,Type,InitialValue,MinValue,MaxValue,IdeologicalAlignment,BudgetType,Frames,GroupImpacts
+gdp,GSYİH,Statistic,60,0,100,60,,,
+crime_rate,Suç Oranı,Statistic,30,0,100,-20,,,
+unemployment,İşsizlik,Statistic,15,0,100,-30,,,
+healthcare_quality,Sağlık Kalitesi,Statistic,50,0,100,-40,,,
+education_level,Eğitim Seviyesi,Statistic,50,0,100,-40,,,
+environment_quality,Çevre Kalitesi,Statistic,45,0,100,-60,,,
+infrastructure,Altyapı,Statistic,40,0,100,0,,,
+inequality,Gelir Eşitsizliği,Statistic,55,0,100,-70,,,
+poverty_rate,Yoksulluk,Statistic,40,0,100,-70,,,
+life_expectancy,Yaşam Süresi,Statistic,60,0,100,0,,,
+happiness,Mutluluk Endeksi,Statistic,50,0,100,0,,,
+energy_security,Enerji Güvenliği,Statistic,40,0,100,20,,,
+tech_level,Teknoloji Seviyesi,Statistic,30,0,100,0,,,
+military_strength,Askeri Güç,Statistic,50,0,100,20,,,
+edu_budget,Eğitim Bütçesi,Policy,50,0,100,-40,Expense,"Halk İçin:-20|Sermaye İçin:+20","workers:5|intellectuals:8|capitalists:-3"
+healthcare_budget,Sağlık Bütçesi,Policy,50,0,100,-40,Expense,"Halk İçin:-15|Sermaye İçin:+15","workers:6|conservatives:2|capitalists:-4"
+military_budget,Savunma Bütçesi,Policy,50,0,100,60,Expense,"Milliyetçi:0|Halk İçin:-25","nationalist_grp:8|workers:-5|intellectuals:-6"
+infrastructure_budget,Altyapı Bütçesi,Policy,40,0,100,0,Expense,"Halk İçin:-10|Sermaye İçin:+10","workers:3|capitalists:4"
+tax_income,Gelir Vergisi,Policy,30,0,100,-30,Revenue,"Halk İçin:-10|Sermaye İçin:+30","workers:-5|capitalists:-6|intellectuals:-2"
+tax_corporate,Kurumlar Vergisi,Policy,20,0,100,-50,Revenue,"Halk İçin:-20|Sermaye İçin:+40","workers:4|capitalists:-8"
+tax_carbon,Karbon Vergisi,Policy,10,0,100,-20,Revenue,"Çevre İçin:-10|Sermaye İçin:+20","intellectuals:4|capitalists:-3|conservatives:-2"
+minimum_wage,Asgari Ücret,Policy,40,0,100,-60,Regulation,"Halk İçin:-20|Sermaye İçin:+30","workers:8|capitalists:-6"
+labor_rights,İşçi Hakları,Policy,50,0,100,-70,Regulation,"Halk İçin:-25|Sermaye İçin:+40","workers:10|capitalists:-7|conservatives:-2"
+police_funding,Polis Bütçesi,Policy,50,0,100,50,Expense,"Halk İçin:-15|Milliyetçi:0","conservatives:6|workers:-3|intellectuals:-5"
+environment_regulation,Çevre Düzenlemesi,Policy,30,0,100,-50,Regulation,"Çevre İçin:-30|Sermaye İçin:+40","intellectuals:6|capitalists:-5"
+renewable_energy,Yenilenebilir Enerji,Policy,20,0,100,-30,Expense,"Çevre İçin:-20|Sermaye İçin:+25","intellectuals:4|capitalists:-3"
+nuclear_energy,Nükleer Enerji,Policy,10,0,100,10,Expense,"Milliyetçi:-5|Çevre İçin:+30","intellectuals:-3|conservatives:2"
+healthcare_reform,Sağlık Reformu,Policy,30,0,100,-40,Regulation,"Halk İçin:-20","workers:6|intellectuals:4|capitalists:-2"
+education_reform,Eğitim Reformu,Policy,30,0,100,-50,Regulation,"Halk İçin:-25|Muhafazakar:+15","workers:5|intellectuals:8|conservatives:-4"
+immigration_policy,Göç Politikası,Policy,50,0,100,60,Regulation,"Milliyetçi:0|Halk İçin:-20","workers:-6|conservatives:5|intellectuals:-3"
+drug_policy,Uyuşturucu Politikası,Policy,50,0,100,0,Regulation,"Halk İçin:0","conservatives:-4|intellectuals:2"
+gun_control,Silah Kontrolü,Policy,50,0,100,-40,Regulation,"Halk İçin:-15|Milliyetçi:+30","conservatives:-6|workers:4|intellectuals:3"
+religious_policy,Dini Politika,Policy,50,0,100,60,Regulation,"Muhafazakar:-15|Halk İçin:+20","conservatives:8|intellectuals:-7"
+lgbt_rights,LGBT Hakları,Policy,50,0,100,-70,Regulation,"İlerici:-30|Muhafazakar:+40","intellectuals:8|conservatives:-9"
+foreign_aid,Dış Yardım,Policy,30,0,100,-30,Expense,"Halk İçin:-10|Milliyetçi:+20","intellectuals:3|conservatives:-4"
+trade_policy,Ticaret Politikası,Policy,50,0,100,40,Regulation,"Sermaye İçin:-15|Milliyetçi:+20","capitalists:5|workers:-4|conservatives:3"
+surveillance_law,Gözetim Yasası,Policy,20,0,100,60,Expense,"Milliyetçi:-10|Halk İçin:+30","conservatives:4|intellectuals:-8"
+media_regulation,Medya Düzenlemesi,Policy,30,0,100,50,Regulation,"Milliyetçi:-15|Halk İçin:+30","conservatives:5|intellectuals:-9"
+space_program,Uzay Programı,Policy,10,0,100,0,Expense,"Milliyetçi:-10|Halk İçin:+10","intellectuals:4|conservatives:2"
+rnd_budget,Ar-Ge Bütçesi,Policy,30,0,100,-30,Expense,"Halk İçin:-10|Sermaye İçin:+15","intellectuals:8|capitalists:4|workers:-2"
+tech_investment,Teknoloji Yatırımı,Policy,20,0,100,-20,Expense,"Gelecek İçin:-20|Bugün İçin:+20","intellectuals:6|capitalists:3"

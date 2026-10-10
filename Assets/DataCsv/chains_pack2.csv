@@ -1,0 +1,9 @@
+FromEventId,ToEventId,DelayTurns
+constitutional_crisis,press_freedom_crisis,3
+brain_drain_warning,emigration_crisis,4
+factory_closure,union_negotiation,3
+cyber_attack_bank,constitutional_crisis,4
+youth_unemployment,student_movement,3
+corruption_investigation,mass_petition,4
+climate_disaster,drought,3
+coalition_crisis,opposition_merger,5

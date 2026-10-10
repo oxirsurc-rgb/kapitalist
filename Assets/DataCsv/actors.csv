@@ -1,0 +1,17 @@
+Id,Name,Role,Ideology,Ambition,Loyalty,Competence,Influence
+min_economy,Ahmet Bey (Ekonomi Bakanı),Minister,60,80,70,85,40
+min_justice,Zeynep Hanım (Adalet Bakanı),Minister,-30,40,90,70,30
+min_health,Dr. Elif Hanım (Sağlık Bakanı),Minister,-40,50,80,90,35
+min_defense,General Murat Paşa (Savunma Bakanı),Minister,70,60,75,80,45
+min_education,Prof. Sinan Bey (Eğitim Bakanı),Minister,-50,45,85,95,30
+min_foreign,Ayşe Hanım (Dışişleri Bakanı),Minister,10,70,80,85,40
+min_interior,Mehmet Bey (İçişleri Bakanı),Minister,55,75,70,75,45
+opp_leader,Kemal Bey (Muhalefet Lideri),OppositionLeader,-60,90,60,80,50
+opp_deputy,Deniz Hanım (Muhalefet Milletvekili),MP,-50,60,55,70,25
+mp_1,Ali Bey (Milletvekili),MP,20,40,75,60,15
+mp_2,Fatma Hanım (Milletvekili),MP,-25,55,70,65,18
+mp_3,Hasan Bey (Milletvekili),MP,65,50,80,70,20
+mp_4,Ayşe Hanım (Milletvekili),MP,-45,45,70,75,18
+oligarch_1,Rıza Bey (İş Adamı),Oligarch,70,85,40,75,60
+oligarch_2,Selim Bey (Medya Patronu),Oligarch,60,80,35,70,55
+activist_1,Genç Aktivisyen Grubu Lideri,Activist,-70,60,50,60,25

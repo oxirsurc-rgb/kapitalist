@@ -1,0 +1,98 @@
+[
+  {
+    "id": "tur",
+    "name": "Türkiye",
+    "continent": "Asya/Avrupa",
+    "startingLegitimacy": 70.0,
+    "startingCapital": 100.0,
+    "globalAlignment": 10.0,
+    "workerInfluence": 0.4,
+    "capitalistInfluence": 0.2,
+    "intellectualInfluence": 0.2,
+    "conservativeInfluence": 0.2
+  },
+  {
+    "id": "usa",
+    "name": "USA",
+    "continent": "North America",
+    "startingLegitimacy": 60.0,
+    "startingCapital": 300.0,
+    "globalAlignment": -80.0,
+    "workerInfluence": 0.2,
+    "capitalistInfluence": 0.4,
+    "intellectualInfluence": 0.2,
+    "conservativeInfluence": 0.2
+  },
+  {
+    "id": "chn",
+    "name": "China",
+    "continent": "Asia",
+    "startingLegitimacy": 90.0,
+    "startingCapital": 250.0,
+    "globalAlignment": 70.0,
+    "workerInfluence": 0.5,
+    "capitalistInfluence": 0.1,
+    "intellectualInfluence": 0.1,
+    "conservativeInfluence": 0.3
+  },
+  {
+    "id": "rus",
+    "name": "Russia",
+    "continent": "Europe/Asia",
+    "startingLegitimacy": 85.0,
+    "startingCapital": 150.0,
+    "globalAlignment": 80.0,
+    "workerInfluence": 0.3,
+    "capitalistInfluence": 0.1,
+    "intellectualInfluence": 0.1,
+    "conservativeInfluence": 0.5
+  },
+  {
+    "id": "bra",
+    "name": "Brazil",
+    "continent": "South America",
+    "startingLegitimacy": 50.0,
+    "startingCapital": 80.0,
+    "globalAlignment": 0.0,
+    "workerInfluence": 0.4,
+    "capitalistInfluence": 0.2,
+    "intellectualInfluence": 0.1,
+    "conservativeInfluence": 0.3
+  },
+  {
+    "id": "fra",
+    "name": "France",
+    "continent": "Europe",
+    "startingLegitimacy": 75.0,
+    "startingCapital": 180.0,
+    "globalAlignment": -40.0,
+    "workerInfluence": 0.3,
+    "capitalistInfluence": 0.3,
+    "intellectualInfluence": 0.3,
+    "conservativeInfluence": 0.1
+  },
+  {
+    "id": "ind",
+    "name": "India",
+    "continent": "Asia",
+    "startingLegitimacy": 65.0,
+    "startingCapital": 120.0,
+    "globalAlignment": 0.0,
+    "workerInfluence": 0.5,
+    "capitalistInfluence": 0.2,
+    "intellectualInfluence": 0.1,
+    "conservativeInfluence": 0.2
+  },
+  {
+    "id": "gbr",
+    "name": "UK",
+    "continent": "Europe",
+    "startingLegitimacy": 70.0,
+    "startingCapital": 200.0,
+    "globalAlignment": -60.0,
+    "workerInfluence": 0.2,
+    "capitalistInfluence": 0.4,
+    "intellectualInfluence": 0.2,
+    "conservativeInfluence": 0.2
+  }
+]
