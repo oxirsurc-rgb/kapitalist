@@ -40,6 +40,17 @@ namespace DemocracySim.Engine.Core
         }
 
         // Kayıt/Yükleme sistemi için: mutlak değeri doğrudan ayarlar (AdjustLegitimacy delta ile çalışır, bu ile karıştırma)
-        public void SetLegitimacy(float value) => CurrentLegitimacy = Math.Clamp(value, 0f, 100f);
+        public void SetLegitimacy(float value)
+{
+    CurrentLegitimacy = Math.Clamp(value, 0f, 100f);
+    
+    // ═══════════════════════════════════════════════════════════
+    // EK-32: Senaryo meşruiyetinin 1. turda sıfırlanmasını engelle
+    // ═══════════════════════════════════════════════════════════
+    // RecalculateFromDemographics her tur baseValue + Modifier hesaplıyor.
+    // Modifier = 0 ise senaryo değeri kaybolur.
+    // Senaryo değerini base 50'ye göre fark olarak sakla.
+    Modifier = value - 50f;
+}
     }
 }

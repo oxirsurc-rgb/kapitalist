@@ -163,6 +163,7 @@ public static string DataRootPath { get; set; } =
         try
         {
             string json = File.ReadAllText(path);
+            if (string.IsNullOrWhiteSpace(json)) continue;
             var objData = JsonSerializer.Deserialize<List<ObjectData>>(json, _options);
             if (objData == null) continue;
             foreach (var d in objData)
@@ -201,6 +202,7 @@ public static string DataRootPath { get; set; } =
         try
         {
             string json = File.ReadAllText(path);
+            if (string.IsNullOrWhiteSpace(json)) continue;
             var actorData = JsonSerializer.Deserialize<List<ActorData>>(json, _options);
             if (actorData == null) continue;
             foreach (var d in actorData)
@@ -227,6 +229,7 @@ public static string DataRootPath { get; set; } =
         try
         {
             string json = File.ReadAllText(path);
+            if (string.IsNullOrWhiteSpace(json)) continue;
             var effData = JsonSerializer.Deserialize<List<EffectData>>(json, _options);
             if (effData == null) continue;
             foreach (var d in effData)

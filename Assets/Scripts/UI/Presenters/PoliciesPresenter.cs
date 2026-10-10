@@ -24,11 +24,11 @@ internal sealed class PoliciesPresenter : PagePresenter
         if (opp)
         {
             var note = ui.Card(c, null);
-            HudKit.Label(note, "Muhalefettesiniz: yasa öneremezsiniz. Miting, skandal ve kampanya ile iktidarı hedefleyin.", 22, HudTheme.Warn);
+            HudKit.Label(note, LocalizationManager.Get("pol_opp_note"), 22, HudTheme.Warn);
         }
 
         var policies = (ui.policyCache != null && ui.policyCache.Count > 0) ? ui.policyCache : e.AllObjects.OfType<SimPolicy>().ToList();
-        if (policies.Count == 0) { HudKit.Label(c, "Henüz yasa yok.", 24, HudTheme.Dim); return; }
+        if (policies.Count == 0) { HudKit.Label(c, LocalizationManager.Get("pol_none"), 24, HudTheme.Dim); return; }
 
         foreach (var p in policies)
         {
@@ -54,6 +54,23 @@ internal sealed class PoliciesPresenter : PagePresenter
 
             float range = Mathf.Max(0.01f, pol.MaxValue - pol.MinValue);
             HudKit.Bar(card, (pol.ActualValue - pol.MinValue) / range, pol.IsActive ? HudTheme.Gold : HudTheme.Dim, 8f);
+
+            // FAZ Geliştirme: Politika Etki Öngörüsü (Impact Forecast)
+            if (pol.OutgoingEffects.Count > 0)
+            {
+                var impacts = new List<string>();
+                foreach (var eff in pol.OutgoingEffects.Take(3))
+                {
+                    string targetName = UIManager.Clean(eff.Target?.Name ?? eff.Target?.Id ?? "");
+                    float sample = eff.Strength * 5f;
+                    string sign = sample >= 0 ? "+" : "";
+                    impacts.Add($"{targetName} {sign}{sample:F1}");
+                }
+                if (impacts.Count > 0)
+                {
+                    HudKit.Label(card, "[Tahmin (+5)]: " + string.Join(" | ", impacts), 18, HudTheme.Info, TextAlignmentOptions.Left);
+                }
+            }
         }
     }
 }

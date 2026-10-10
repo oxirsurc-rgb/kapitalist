@@ -25,11 +25,11 @@ internal sealed class CountryDetailPresenter : PresenterBase
 
         if (ui.lastCountry == null || string.IsNullOrEmpty(ui.selectedCountry))
         {
-            HudKit.Label(ui.countryDetailHolder, "Ülke seçin.", 20, HudTheme.Dim);
+            HudKit.Label(ui.countryDetailHolder, LocalizationManager.Get("cd_pick"), 20, HudTheme.Dim);
             return;
         }
 
-        HudKit.Label(ui.countryDetailHolder, "Seçili ülke: " + UIManager.Clean(ui.selectedCountry), 22, HudTheme.Gold, 
+        HudKit.Label(ui.countryDetailHolder, LocalizationManager.Get("cd_selected_fmt", UIManager.Clean(ui.selectedCountry)), 22, HudTheme.Gold, 
             TextAlignmentOptions.Left, FontStyles.Bold);
 
         if (ui.selectedCountryDetail != null)
@@ -40,10 +40,10 @@ internal sealed class CountryDetailPresenter : PresenterBase
             float gdp = c.Engine.AllObjects.Find(o => o.Id == "gdp")?.ActualValue ?? 0f;
             float army = c.Engine.Army.ArmySatisfaction;
 
-            ui.StatRow(ui.countryDetailHolder, "Meşruiyet", $"%{legit:F0}", legit / 100f, UIManager.GoodHigh(legit, 55f, 35f), "");
-            ui.StatRow(ui.countryDetailHolder, "Huzursuzluk", $"%{unrest:F0}", unrest / 100f, UIManager.GoodLow(unrest, 25f, 55f), "");
-            ui.StatRow(ui.countryDetailHolder, "GSYİH", $"{gdp:F0}", gdp / 100f, HudTheme.Info, "");
-            ui.StatRow(ui.countryDetailHolder, "Ordu Memnuniyeti", $"%{army:F0}", army / 100f, UIManager.GoodHigh(army, 55f, 30f), "");
+            ui.StatRow(ui.countryDetailHolder, LocalizationManager.Get("stat_legitimacy"), $"%{legit:F0}", legit / 100f, UIManager.GoodHigh(legit, 55f, 35f), "");
+            ui.StatRow(ui.countryDetailHolder, LocalizationManager.Get("stat_unrest"), $"%{unrest:F0}", unrest / 100f, UIManager.GoodLow(unrest, 25f, 55f), "");
+            ui.StatRow(ui.countryDetailHolder, LocalizationManager.Get("stat_gdp"), $"{gdp:F0}", gdp / 100f, HudTheme.Info, "");
+            ui.StatRow(ui.countryDetailHolder, LocalizationManager.Get("stat_army_satisfaction"), $"%{army:F0}", army / 100f, UIManager.GoodHigh(army, 55f, 30f), "");
 
             // FAZ 4: Oyuncuya karşı Trust skoru
             if (ui.lastCountry != null && c.Memory != null)
@@ -61,21 +61,30 @@ internal sealed class CountryDetailPresenter : PresenterBase
                 };
                 string tierStr = tier switch
                 {
-                    TrustTier.Enemy    => "DÜŞMAN",
-                    TrustTier.Cold     => "Soğuk",
-                    TrustTier.Neutral  => "Nötr",
-                    TrustTier.Friendly => "Dostane",
-                    TrustTier.Ally     => "MÜTTEFİK",
+                    TrustTier.Enemy    => LocalizationManager.Get("trust_enemy"),
+                    TrustTier.Cold     => LocalizationManager.Get("trust_cold"),
+                    TrustTier.Neutral  => LocalizationManager.Get("trust_neutral"),
+                    TrustTier.Friendly => LocalizationManager.Get("trust_friendly"),
+                    TrustTier.Ally     => LocalizationManager.Get("trust_ally"),
                     _ => "?"
                 };
-                ui.StatRow(ui.countryDetailHolder, $"Bize Güven ({tierStr})", 
+                ui.StatRow(ui.countryDetailHolder, LocalizationManager.Get("cd_trust_fmt", tierStr), 
                     $"%{trust:F0}", trust / 100f, trustColor, "");
+
+                // Ticaret & Yaptırım Rozeti
+                if (ui.lastCountry.Engine != null)
+                {
+                    bool isTradePartner = ui.lastCountry.Engine.Universe.TradePartners.Contains(c.Id);
+                    Color tradeCol = isTradePartner ? HudTheme.Good : HudTheme.Dim;
+                    string tradeStr = isTradePartner ? "[TİCARET ANLAŞMASI: AKTİF (+GSYİH)]" : "[İKİLİ TİCARET ANLAŞMASI YOK]";
+                    HudKit.Label(ui.countryDetailHolder, tradeStr, 17, tradeCol, TextAlignmentOptions.Left, FontStyles.Bold);
+                }
             }
 
             // Son eylemler
             if (c.RecentActions != null && c.RecentActions.Count > 0)
             {
-                HudKit.Label(ui.countryDetailHolder, "SON EYLEMLER:", 19, HudTheme.Gold, 
+                HudKit.Label(ui.countryDetailHolder, LocalizationManager.Get("cd_recent_actions"), 19, HudTheme.Gold, 
                     TextAlignmentOptions.Left, FontStyles.Bold);
                 foreach (var action in c.RecentActions)
                 {
@@ -88,7 +97,7 @@ internal sealed class CountryDetailPresenter : PresenterBase
                 c.Memory.TrustHistory.TryGetValue(ui.lastCountry.Id, out var history) && 
                 history.Count > 0)
             {
-                HudKit.Label(ui.countryDetailHolder, "GÜVEN GEÇMİŞİ:", 19, HudTheme.Gold, 
+                HudKit.Label(ui.countryDetailHolder, LocalizationManager.Get("cd_trust_history"), 19, HudTheme.Gold, 
                     TextAlignmentOptions.Left, FontStyles.Bold);
                 foreach (var evt in history.Take(3))
                 {

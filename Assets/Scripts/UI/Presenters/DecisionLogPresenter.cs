@@ -20,13 +20,13 @@ internal sealed class DecisionLogPresenter : PagePresenter
 
     public override void Build(RectTransform c, SimulationEngine e)
 {
-    HudKit.Label(c, "KARAR GÜNLÜĞÜ", 28, HudTheme.Gold, 
+    HudKit.Label(c, LocalizationManager.Get("dec_title"), 28, HudTheme.Gold, 
         TextAlignmentOptions.Left, FontStyles.Bold);
-    HudKit.Label(c, "Son 20 kararınız ve etkileri.", 20, HudTheme.Dim);
+    HudKit.Label(c, LocalizationManager.Get("dec_desc"), 20, HudTheme.Dim);
 
     if (e.DecisionLog == null || e.DecisionLog.Count == 0)
     {
-        HudKit.Label(c, "Henüz kayıtlı karar yok.", 22, HudTheme.Dim);
+        HudKit.Label(c, LocalizationManager.Get("dec_none"), 22, HudTheme.Dim);
         return;
     }
 
@@ -36,7 +36,7 @@ internal sealed class DecisionLogPresenter : PagePresenter
         var top = HudKit.NewRect(card, "Top");
         HudKit.HStack(top.gameObject, 8, 0, TextAnchor.MiddleLeft, false, true);
 
-        var turnLabel = HudKit.Label(top, $"Tur {entry.Turn}", 20, HudTheme.Gold, 
+        var turnLabel = HudKit.Label(top, LocalizationManager.Get("turn_label", entry.Turn), 20, HudTheme.Gold, 
             TextAlignmentOptions.Left, FontStyles.Bold);
         HudKit.Size(turnLabel.gameObject, prefW: 80);
 
@@ -48,7 +48,7 @@ internal sealed class DecisionLogPresenter : PagePresenter
         if (Math.Abs(entry.Impact) > 0.01f)
         {
             Color impactColor = entry.Impact >= 0 ? HudTheme.Good : HudTheme.Bad;
-            HudKit.Label(card, $"Etki: {entry.Impact:+0.0;-0.0}", 19, impactColor);
+            HudKit.Label(card, LocalizationManager.Get("dec_impact_fmt", entry.Impact.ToString("+0.0;-0.0")), 19, impactColor);
         }
     }
 }

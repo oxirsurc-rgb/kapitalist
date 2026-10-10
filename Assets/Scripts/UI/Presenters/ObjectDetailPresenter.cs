@@ -30,22 +30,22 @@ internal sealed class ObjectDetailPresenter : PresenterBase
 
             // 3 tur önceki değer ve değişim
             float change3 = obj.GetChangeSince(3);
-            string changeStr = (change3 >= 0 ? "+" : "") + change3.ToString("F1") + " puan (3 tur)";
+            string changeStr = (change3 >= 0 ? "+" : "") + change3.ToString("F1") + LocalizationManager.Get("unit_points_3turns");
             Color changeColor = change3 >= 0 ? HudTheme.Good : HudTheme.Bad;
             HudKit.Label(card, changeStr, 24, changeColor, TextAlignmentOptions.Center);
 
             // Denge noktası
             HudKit.Label(card, 
-                $"Denge noktası: %{obj.EquilibriumValue:F1}  |  Atalet: %{obj.Inertia * 100:F0}", 
+                LocalizationManager.Get("obj_equilibrium_fmt", obj.EquilibriumValue.ToString("F1"), (obj.Inertia * 100).ToString("F0")), 
                 20, HudTheme.Dim, TextAlignmentOptions.Center);
 
             // Etki breakdown
             var breakdown = obj.GetEffectBreakdown();
-            var sourcesCard = ui.Card(card, "ETKİ KAYNAKLARI");
+            var sourcesCard = ui.Card(card, LocalizationManager.Get("obj_sources"));
             
             if (breakdown.Count == 0)
             {
-                HudKit.Label(sourcesCard, "Şu an aktif bir etki yok.", 20, HudTheme.Dim);
+                HudKit.Label(sourcesCard, LocalizationManager.Get("obj_no_effect"), 20, HudTheme.Dim);
             }
             else
             {
@@ -68,7 +68,7 @@ internal sealed class ObjectDetailPresenter : PresenterBase
 
                     // Etki değeri
                     var valLabel = HudKit.Label(row, 
-                        (contrib >= 0 ? "+" : "") + contrib.ToString("F2") + " puan", 
+                        (contrib >= 0 ? "+" : "") + contrib.ToString("F2") + LocalizationManager.Get("unit_points"), 
                         20, contribColor, TextAlignmentOptions.Right, FontStyles.Bold);
                     HudKit.Size(valLabel.gameObject, prefW: 130);
                 }
@@ -77,25 +77,25 @@ internal sealed class ObjectDetailPresenter : PresenterBase
             // Son 20 tur mini grafiği (büyük)
             if (obj.History.Count >= 5)
             {
-                var histCard = ui.Card(card, "SON 20 TUR");
+                var histCard = ui.Card(card, LocalizationManager.Get("obj_last20"));
                 ui.DrawSparkline(histCard, obj.History, HudTheme.Info);
                 
                 // Min/max bilgisi
                 float min = obj.History.Min();
                 float max = obj.History.Max();
-                HudKit.Label(histCard, $"Min: %{min:F1}   |   Max: %{max:F1}   |   Şimdi: %{obj.ActualValue:F1}", 
+                HudKit.Label(histCard, LocalizationManager.Get("obj_history_fmt", min.ToString("F1"), max.ToString("F1"), obj.ActualValue.ToString("F1")), 
                     18, HudTheme.Dim, TextAlignmentOptions.Center);
             }
 
             // FAZ 3.5: Etki zinciri görselleştirmesi (mini node graph)
 if (obj.IncomingEffects.Count > 0 || obj.OutgoingEffects.Count > 0)
 {
-    var graphCard = ui.Card(card, "ETKİ ZİNCİRİ");
+    var graphCard = ui.Card(card, LocalizationManager.Get("obj_chain"));
 
     // Gelen etkiler (sol taraf)
     if (obj.IncomingEffects.Count > 0)
     {
-        HudKit.Label(graphCard, "◀ GELEN ETKİLER", 18, HudTheme.Info, 
+        HudKit.Label(graphCard, LocalizationManager.Get("obj_incoming"), 18, HudTheme.Info, 
             TextAlignmentOptions.Left, FontStyles.Bold);
         foreach (var eff in obj.IncomingEffects.Take(5))
         {
@@ -111,7 +111,7 @@ if (obj.IncomingEffects.Count > 0 || obj.OutgoingEffects.Count > 0)
     // Giden etkiler (sağ taraf)
     if (obj.OutgoingEffects.Count > 0)
     {
-        HudKit.Label(graphCard, "▶ GİDEN ETKİLER", 18, HudTheme.Warn, 
+        HudKit.Label(graphCard, LocalizationManager.Get("obj_outgoing"), 18, HudTheme.Warn, 
             TextAlignmentOptions.Left, FontStyles.Bold);
         foreach (var eff in obj.OutgoingEffects.Take(5))
         {
@@ -126,7 +126,7 @@ if (obj.IncomingEffects.Count > 0 || obj.OutgoingEffects.Count > 0)
 }
 
             // Kapat butonu
-            HudKit.MakeButton(card, "Kapat", HudTheme.Line, HudTheme.Dim, 22, () => ui.CloseModal(), 56);
+            HudKit.MakeButton(card, LocalizationManager.Get("close"), HudTheme.Line, HudTheme.Dim, 22, () => ui.CloseModal(), 56);
         });
     }
 }

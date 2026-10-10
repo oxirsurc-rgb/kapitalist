@@ -21,10 +21,10 @@ internal sealed class FactionsPresenter : PagePresenter
     public override void Build(RectTransform c, SimulationEngine e)
 {
     var fm = e.Factions;
-    if (fm == null) { HudKit.Label(c, "Fraksiyon verisi yok.", 24, HudTheme.Dim); return; }
+    if (fm == null) { HudKit.Label(c, LocalizationManager.Get("fac_no_data"), 24, HudTheme.Dim); return; }
 
-    HudKit.Label(c, "PARTİ İÇİ FRAKSİYONLAR", 28, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
-    HudKit.Label(c, "Her fraksiyonun desteğini %20'nin üzerinde tut. Düşerse liderlik meydan okuması başlar.",
+    HudKit.Label(c, LocalizationManager.Get("fac_title"), 28, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
+    HudKit.Label(c, LocalizationManager.Get("fac_desc"),
         20, HudTheme.Dim);
 
     foreach (var f in fm.Factions)
@@ -37,11 +37,11 @@ internal sealed class FactionsPresenter : PagePresenter
         HudKit.VStack(info.gameObject, 4, 0);
         HudKit.Size(info.gameObject, flexW: 1);
 
-        string side = f.Ideology < -20f ? "Sol" : (f.Ideology > 20f ? "Sağ" : "Merkez");
+        string side = f.Ideology < -20f ? LocalizationManager.Get("ideology_left") : (f.Ideology > 20f ? LocalizationManager.Get("ideology_right") : LocalizationManager.Get("ideology_center"));
         HudKit.Label(info, UIManager.Clean(f.Name) + $" ({side})", 26, HudTheme.Text, TextAlignmentOptions.Left, FontStyles.Bold);
 
         if (f.IsChallenging)
-            HudKit.Label(info, $"⚠️ MEYDAN OKUMA: {f.ChallengeTurnsLeft} tur kaldı!", 20, HudTheme.Bad);
+            HudKit.Label(info, LocalizationManager.Get("fac_challenge_fmt", f.ChallengeTurnsLeft), 20, HudTheme.Bad);
 
         var val = HudKit.Label(top, "%" + f.Support.ToString("F0"), 32, 
             f.Support < 20f ? HudTheme.Bad : (f.Support < 40f ? HudTheme.Warn : HudTheme.Good),
@@ -56,7 +56,7 @@ internal sealed class FactionsPresenter : PagePresenter
         var actions = HudKit.NewRect(card, "Actions");
         HudKit.HStack(actions.gameObject, 8, 0, TextAnchor.MiddleLeft, true, true);
 
-        var btnConcede = HudKit.MakeButton(actions, "Taviz Ver (15 Sermaye)", HudTheme.Action, Color.white, 20, () =>
+        var btnConcede = HudKit.MakeButton(actions, LocalizationManager.Get("fac_concede"), HudTheme.Action, Color.white, 20, () =>
         {
             string msg = fm.ConcedeToFaction(f.Id, e, 15f);
             ui.WriteLog(msg);
@@ -65,7 +65,7 @@ internal sealed class FactionsPresenter : PagePresenter
         }, 50);
         btnConcede.interactable = e.PoliticalCapital >= 15f;
 
-        var btnAppoint = HudKit.MakeButton(actions, "Bakan Ata (10 Sermaye)", HudTheme.Action, Color.white, 20, () =>
+        var btnAppoint = HudKit.MakeButton(actions, LocalizationManager.Get("fac_appoint"), HudTheme.Action, Color.white, 20, () =>
         {
             string msg = fm.AppointFactionMinister(f.Id, e);
             ui.WriteLog(msg);
@@ -78,7 +78,7 @@ internal sealed class FactionsPresenter : PagePresenter
 // FAZ 3.5: Fraksiyon talepleri
 if (e.FactionBargain != null && e.FactionBargain.ActiveDemands.Count > 0)
 {
-    var demandCard = ui.Card(c, "AKTİF TALEPLER");
+    var demandCard = ui.Card(c, LocalizationManager.Get("fac_demands"));
     foreach (var kv in e.FactionBargain.ActiveDemands)
     {
         var demand = kv.Value;
@@ -94,7 +94,7 @@ if (e.FactionBargain != null && e.FactionBargain.ActiveDemands.Count > 0)
         HudKit.HStack(btnRow.gameObject, 8, 0, TextAnchor.MiddleLeft, true, true);
 
         string fid = kv.Key;
-        HudKit.MakeButton(btnRow, "Kabul Et", HudTheme.Good, Color.white, 20, () =>
+        HudKit.MakeButton(btnRow, LocalizationManager.Get("accept"), HudTheme.Good, Color.white, 20, () =>
         {
             string msg = e.FactionBargain.AcceptDemand(fid, e);
             ui.WriteLog(msg);
@@ -102,7 +102,7 @@ if (e.FactionBargain != null && e.FactionBargain.ActiveDemands.Count > 0)
             ui.RebuildCurrent();
         }, 48);
 
-        HudKit.MakeButton(btnRow, "Reddet", HudTheme.Bad, Color.white, 20, () =>
+        HudKit.MakeButton(btnRow, LocalizationManager.Get("reject"), HudTheme.Bad, Color.white, 20, () =>
         {
             string msg = e.FactionBargain.RejectDemand(fid, e);
             ui.WriteLog(msg);

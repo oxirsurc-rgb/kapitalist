@@ -111,6 +111,11 @@ namespace DemocracySim.Engine.Core
                 Influence = 30f + candidate.Competence * 0.3f,
                 Satisfaction = 70f
             };
+            if (!string.IsNullOrEmpty(candidate.Trait))
+            {
+                actor.BackgroundTrait = candidate.Trait;
+                actor.Traits.Add(ParseTrait(candidate.Trait));
+            }
             e.Actors.Add(actor);
 
             // Piyasadan çıkar
@@ -139,6 +144,20 @@ namespace DemocracySim.Engine.Core
 
             return $"[OK] {minister.Name} görevden alındı. (-{FiringCost:F0} sermaye, -2 meşruiyet)";
         }
+
+        public static ActorTrait ParseTrait(string s) => s switch
+        {
+            "İş İnsanı" or "BusinessPerson" => ActorTrait.BusinessPerson,
+            "Aktivist" or "Activist" => ActorTrait.Activist,
+            "Popülist" or "Populist" => ActorTrait.Populist,
+            "Teknokrat" or "Technocrat" => ActorTrait.Technocrat,
+            "Akademisyen" or "Academic" => ActorTrait.Academic,
+            "Bürokrat" or "Bureaucrat" => ActorTrait.Bureaucrat,
+            "Hırslı" or "Ambitious" => ActorTrait.Ambitious,
+            "Temkinli" or "Cautious" => ActorTrait.Cautious,
+            "Yolsuz" or "Corrupt" => ActorTrait.Corrupt,
+            _ => ActorTrait.LoyalistsHeart
+        };
     }
 
     /// <summary>Piyasadaki bir bakan adayı.</summary>

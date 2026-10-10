@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <ui:VisualElement name="page-container" style="flex-grow: 1;">
+        
+        <!-- Top bar -->
+        <ui:VisualElement name="top-bar" class="top-bar">
+            <ui:Label text="MEŞRUİYET" name="lbl-legit" />
+            <ui:Label text="0%" name="val-legit" />
+            <ui:Label text="SERMAYE" name="lbl-capital" />
+            <ui:Label text="0" name="val-capital" />
+            <ui:Button text="SONRAKİ TUR" name="btn-next-turn" />
+        </ui:VisualElement>
+
+        <!-- Pages -->
+        <ui:VisualElement name="page-main" class="page">
+            <ui:Label text="ANA SAYFA" />
+        </ui:VisualElement>
+        
+        <ui:VisualElement name="page-economy" class="page">
+            <ui:Label text="EKONOMİ" />
+        </ui:VisualElement>
+        
+        <ui:VisualElement name="page-world" class="page">
+            <ui:Label text="DÜNYA" />
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>

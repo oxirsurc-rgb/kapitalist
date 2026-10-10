@@ -7,6 +7,7 @@ namespace DemocracySim.Engine.Core
     public class SimulationEngine
     {
         public CrisisChainManager CrisisChains { get; set; } = new CrisisChainManager();
+        public MarketDynamics Market { get; set; } = new MarketDynamics();
         public FactionBargaining FactionBargain { get; set; } = new FactionBargaining();
         public Dictionary<string, int> ActiveAntiCampaigns { get; set; } = new Dictionary<string, int>();
         public PartyBudget Party { get; set; } = new PartyBudget();
@@ -104,6 +105,7 @@ public void AddObject(SimObject obj)
     target.IncomingEffects.Add(effect);
 
 }
+
         public void ProposePolicy(string policyId)
 {
     var policy = AllObjects.OfType<SimPolicy>().FirstOrDefault(p => p.Id == policyId);
@@ -119,9 +121,9 @@ public SimulationEngine()
 {
     Army.BindEngine(this);
     Technology.BindEngine(this);
-    RegisterAllTurnSystems();   // R-FIX: boru hattı daha önce hiç kaydedilmiyordu → tur boş çalışıyordu
+    Market.BindEngine(this);   // ← EKLE
+    RegisterAllTurnSystems();
 }
-
 // Muhalefetin yasaya karşı kampanya yürütmesi (Oylama öncesi baskıyı artırır)
 public float CampaignAgainstPolicy(string policyId, float capital)
 {
@@ -657,6 +659,7 @@ private readonly TurnSystemRegistry _turnRegistry = new TurnSystemRegistry();
 private void RegisterAllTurnSystems()
 {
     _turnRegistry.Register(new VoterTransitionSystem());
+    _turnRegistry.Register(new MarketDynamicsSystem());
     _turnRegistry.Register(new FactionSystem());
     _turnRegistry.Register(new ShadowCabinetSystem());
     _turnRegistry.Register(new PartyBudgetSystem());
@@ -688,11 +691,9 @@ _turnRegistry.Register(new OppositionMomentumSystem());
     // EK-24: Adaylık krizi uyarısı
 _turnRegistry.Register(new CandidateCrisisSystem());
 _turnRegistry.Register(new MinistryMarketSystem());
-_turnRegistry.Register(new EconomicCrisisSystem()); 
+_turnRegistry.Register(new EconomicCrisisSystem());
+_turnRegistry.Register(new PollingSystem());
 
-// EK-9: EventCheckSystem en son çalışır
-_eventCheckSystem = new EventCheckSystem();
-_turnRegistry.Register(_eventCheckSystem);
     // EK-9: EventCheckSystem en son çalışır
     _eventCheckSystem = new EventCheckSystem();
     _turnRegistry.Register(_eventCheckSystem);

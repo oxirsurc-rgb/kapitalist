@@ -37,6 +37,9 @@ namespace DemocracySim.Engine.Core
             // FAZ 1: MilitaryStrength artık SimStatistic — SaveLoadManager Objects üzerinden yükler
         }
 
+        public void AdjustLoyalty(float delta) => LoyaltyToLeader = Math.Clamp(LoyaltyToLeader + delta, 0f, 100f);
+        public void AdjustSatisfaction(float delta) => ArmySatisfaction = Math.Clamp(ArmySatisfaction + delta, 0f, 100f);
+
         public void UpdateArmy(SimulationEngine engine, float militaryBudget)
         {
             // 1. Bütçe Etkisi

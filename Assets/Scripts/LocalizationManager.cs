@@ -30,8 +30,18 @@ public static class LocalizationManager
     /// <summary>Kayıtlı dili yükle (başlangıçta çağrılır).</summary>
     public static void LoadSavedLanguage()
     {
-        // Oyun her zaman English başlasın
-        SetLanguage(Language.English);
+        int saved = PlayerPrefs.GetInt("Language", -1);
+        if (saved >= 0 && saved < AllLanguages.Length)
+        {
+            SetLanguage((Language)saved);
+        }
+        else
+        {
+            Language defaultLang = Application.systemLanguage == SystemLanguage.Turkish 
+                ? Language.Turkish 
+                : Language.English;
+            SetLanguage(defaultLang);
+        }
     }
 
     /// <summary>Dili değiştir + dosyayı yükle + event yayınla.</summary>
@@ -42,6 +52,18 @@ public static class LocalizationManager
         PlayerPrefs.Save();
         LoadLanguageFile(lang);
         OnLanguageChanged?.Invoke();
+    }
+
+    public static void SetLanguage(string code)
+    {
+        for (int i = 0; i < LanguageCodes.Length; i++)
+        {
+            if (string.Equals(LanguageCodes[i], code, StringComparison.OrdinalIgnoreCase))
+            {
+                SetLanguage((Language)i);
+                return;
+            }
+        }
     }
 
     /// <summary>JSON dosyasını yükle.</summary>
@@ -93,10 +115,19 @@ public static class LocalizationManager
 
     /// <summary>Çeviriyi döndür. Yoksa anahtarı döndürür.</summary>
     public static string Get(string key)
-    {
-        if (string.IsNullOrEmpty(key)) return "";
-        return _current.TryGetValue(key, out var value) ? value : key;
-    }
+{
+    if (string.IsNullOrEmpty(key)) return "";
+    
+    // 1) Önce aktif dil dosyasından oku
+    if (_current.TryGetValue(key, out var value)) return value;
+    
+    // 2) Bulunamazsa LocalizationDefaults'tan oku (yedek)
+    string fallback = LocalizationDefaults.Lookup(key, CurrentLanguage);
+    if (fallback != null) return fallback;
+    
+    // 3) Hiçbir yerde yoksa ham anahtarı döndür
+    return key;
+}
 
     /// <summary>Format'lı çeviri.</summary>
     public static string Get(string key, params object[] args)
@@ -106,7 +137,7 @@ public static class LocalizationManager
         catch { return template; }
     }
 
-    public static bool Has(string key) => _current.ContainsKey(key);
+    public static bool Has(string key) => _current.ContainsKey(key) || LocalizationDefaults.Has(key);
 
     /// <summary>Eksik çeviri kontrolü — geliştirme için.</summary>
     public static List<string> ValidateAllLanguages()

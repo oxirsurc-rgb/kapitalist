@@ -46,7 +46,8 @@ public static void Initialize()
             }
         }
 
-        public static bool IsReady => State == LLMState.Ready;
+        public static bool DisabledForTesting = true;
+        public static bool IsReady => !DisabledForTesting && State == LLMState.Ready;
 
         public static async void EmbellishText(string rawText, Action<string> onComplete)
         {

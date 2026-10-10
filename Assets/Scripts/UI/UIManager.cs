@@ -45,6 +45,7 @@ public class UIManager : MonoBehaviour
     // ---- Üst çubuk ----
     TextMeshProUGUI roleText, titleText;
     Chip chipCapital, chipLegit, chipInfl, chipElection, chipCoup;
+    Button langButton;
 
     // ---- Yan panel ----
     TextMeshProUGUI newsText;
@@ -61,6 +62,7 @@ public class UIManager : MonoBehaviour
     internal RectTransform diplomacyTargets, relationBarHolder;
     internal TextMeshProUGUI relationLabel, networkLabel;
     internal string selectedCountry = "";
+    internal RectTransform radarChartHolder;
 
     // ---- Önbellek ----
     internal Country lastCountry;
@@ -102,7 +104,18 @@ EventBus.Subscribe<NotificationEvent>(OnNotification);
 EventBus.Subscribe<AchievementUnlockedEvent>(OnAchievementUnlocked);
 LocalizationManager.OnLanguageChanged += OnLanguageChanged;
 
-if (UnityEngine.Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() == null)            Debug.LogWarning("[UI] Sahnede EventSystem yok; butonlar tıklanamaz. GameObject > UI > Event System ekleyin.");
+        // Mirror Online Network bağlantısı
+        var net = DemocracySim.Engine.Core.Multiplayer.Online.DemocracyNetworkManager.EnsureInstance();
+        net.OnTurnAdvanced += (newTurn, summary) =>
+        {
+            GameManager.Instance?.NextTurn();
+            Notify(summary, false);
+        };
+        net.OnNetworkLog += msg => WriteLog(msg);
+        net.OnChatReceived += (sender, text) => WriteLog($"[SOHBET] {sender}: {text}");
+
+        if (UnityEngine.Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
+            Debug.LogWarning("[UI] Sahnede EventSystem yok; butonlar tıklanamaz. GameObject > UI > Event System ekleyin.");
     }
 
     void BuildCanvas()
@@ -129,20 +142,39 @@ if (UnityEngine.Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>
         }
     }
 
-                void DefineTabs()
+    string GetTabTitle(string key) => key switch
+    {
+        "genel" => LocalizationManager.Get("tab_general"),
+        "yasalar" => LocalizationManager.Get("tab_policies"),
+        "ekonomi" => LocalizationManager.Get("tab_economy"),
+        "halk" => LocalizationManager.Get("tab_people"),
+        "kabine" => LocalizationManager.Get("tab_cabinet"),
+        "dunya" => LocalizationManager.Get("tab_world"),
+        "fraksiyonlar" => LocalizationManager.Get("tab_factions"),
+        "golge" => LocalizationManager.Get("tab_shadow"),
+        "meclis" => LocalizationManager.Get("tab_parliament"),
+        "kararlar" => LocalizationManager.Get("tab_decisions"),
+        "cikar" => LocalizationManager.Get("tab_interests"),
+        "basarim" => LocalizationManager.Get("tab_achievements"),
+        "modlar" => LocalizationManager.Get("tab_mods"),
+        _ => key
+    };
+
+    void DefineTabs()
     {
         tabs.Add(new Tab { Key = "genel", Title = LocalizationManager.Get("tab_general"), Builder = new OverviewPresenter(this).Build });
-tabs.Add(new Tab { Key = "yasalar", Title = LocalizationManager.Get("tab_policies"), Builder = new PoliciesPresenter(this).Build });
-tabs.Add(new Tab { Key = "ekonomi", Title = LocalizationManager.Get("tab_economy"), Builder = new EconomyPresenter(this).Build });
-tabs.Add(new Tab { Key = "halk", Title = LocalizationManager.Get("tab_people"), Builder = new PeoplePresenter(this).Build });
-tabs.Add(new Tab { Key = "kabine", Title = LocalizationManager.Get("tab_cabinet"), Builder = new CabinetPresenter(this).Build });
-tabs.Add(new Tab { Key = "dunya", Title = LocalizationManager.Get("tab_world"), Builder = null });
-tabs.Add(new Tab { Key = "fraksiyonlar", Title = LocalizationManager.Get("tab_factions"), Builder = new FactionsPresenter(this).Build });
-tabs.Add(new Tab { Key = "golge", Title = LocalizationManager.Get("tab_shadow"), Builder = new ShadowCabinetPresenter(this).Build });
-tabs.Add(new Tab { Key = "meclis", Title = LocalizationManager.Get("tab_parliament"), Builder = new ParliamentPresenter(this).Build });
-tabs.Add(new Tab { Key = "kararlar", Title = LocalizationManager.Get("tab_decisions"), Builder = new DecisionLogPresenter(this).Build });
-tabs.Add(new Tab { Key = "cikar", Title = LocalizationManager.Get("tab_interests"), Builder = new InterestGroupsPresenter(this).Build });
-tabs.Add(new Tab { Key = "basarim", Title = LocalizationManager.Get("tab_achievements"), Builder = BuildAchievementsPage });
+        tabs.Add(new Tab { Key = "yasalar", Title = LocalizationManager.Get("tab_policies"), Builder = new PoliciesPresenter(this).Build });
+        tabs.Add(new Tab { Key = "ekonomi", Title = LocalizationManager.Get("tab_economy"), Builder = new EconomyPresenter(this).Build });
+        tabs.Add(new Tab { Key = "halk", Title = LocalizationManager.Get("tab_people"), Builder = new PeoplePresenter(this).Build });
+        tabs.Add(new Tab { Key = "kabine", Title = LocalizationManager.Get("tab_cabinet"), Builder = new CabinetPresenter(this).Build });
+        tabs.Add(new Tab { Key = "dunya", Title = LocalizationManager.Get("tab_world"), Builder = null });
+        tabs.Add(new Tab { Key = "fraksiyonlar", Title = LocalizationManager.Get("tab_factions"), Builder = new FactionsPresenter(this).Build });
+        tabs.Add(new Tab { Key = "golge", Title = LocalizationManager.Get("tab_shadow"), Builder = new ShadowCabinetPresenter(this).Build });
+        tabs.Add(new Tab { Key = "meclis", Title = LocalizationManager.Get("tab_parliament"), Builder = new ParliamentPresenter(this).Build });
+        tabs.Add(new Tab { Key = "kararlar", Title = LocalizationManager.Get("tab_decisions"), Builder = new DecisionLogPresenter(this).Build });
+        tabs.Add(new Tab { Key = "cikar", Title = LocalizationManager.Get("tab_interests"), Builder = new InterestGroupsPresenter(this).Build });
+        tabs.Add(new Tab { Key = "basarim", Title = LocalizationManager.Get("tab_achievements"), Builder = BuildAchievementsPage });
+        tabs.Add(new Tab { Key = "modlar", Title = LocalizationManager.Get("tab_mods"), Builder = BuildModsPage });
     }
 
     // ---------------------------------------------------------------------
@@ -178,17 +210,17 @@ tabs.Add(new Tab { Key = "basarim", Title = LocalizationManager.Get("tab_achieve
 {
     if (e.Achievements == null)
     {
-        HudKit.Label(c, "Başarım verisi yok.", 24, HudTheme.Dim);
+        HudKit.Label(c, LocalizationManager.Get("ach_no_data"), 24, HudTheme.Dim);
         return;
     }
 
     var am = e.Achievements;
 
-    HudKit.Label(c, "BAŞARIMLAR", 28, HudTheme.Gold, 
+    HudKit.Label(c, LocalizationManager.Get("ach_title"), 28, HudTheme.Gold, 
         TextAlignmentOptions.Left, FontStyles.Bold);
     var allIds = AchievementManager.AllAchievements.Select(a => a.Id);
 int globalUnlocked = DemocracySim.Engine.Data.GlobalAchievementTracker.CountUnlocked(allIds);
-HudKit.Label(c, $"Kazanılan: {globalUnlocked} / {am.TotalAchievements} (global)", 
+HudKit.Label(c, LocalizationManager.Get("ach_unlocked_fmt", globalUnlocked, am.TotalAchievements), 
     22, HudTheme.Info);
 
     // İlerleme barı
@@ -223,18 +255,108 @@ HudKit.Label(c, $"Kazanılan: {globalUnlocked} / {am.TotalAchievements} (global)
         HudKit.Label(info, ach.Description, 18, HudTheme.Text);
 
         // Durum
-        var status = HudKit.Label(top, done ? "KAZANILDI" : "KİLİTLİ", 
+        var status = HudKit.Label(top, done ? LocalizationManager.Get("ach_done") : LocalizationManager.Get("ach_locked"), 
             18, done ? HudTheme.Good : HudTheme.Bad, 
             TextAlignmentOptions.Right, FontStyles.Bold);
         HudKit.Size(status.gameObject, prefW: 110);
     }
 }
+
+    void BuildModsPage(RectTransform c, SimulationEngine e)
+    {
+        HudKit.ClearChildren(c);
+        HudKit.VStack(c.gameObject, 14, 16);
+
+        // Başlık ve İşlem Butonları
+        var header = HudKit.NewRect(c, "ModsHeader");
+        HudKit.HStack(header.gameObject, 12, 0, TextAnchor.MiddleLeft, false, true);
+        HudKit.Label(header, LocalizationManager.Get("tab_mods").ToUpper(), 28, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
+
+        var spacer = HudKit.NewRect(header, "Spacer");
+        HudKit.Size(spacer.gameObject, flexW: 1);
+
+        // Mod Klasörünü Aç Butonu
+        var openBtn = HudKit.MakeButton(header, LocalizationManager.Get("mods_open_folder"), HudTheme.PanelHi, HudTheme.Text, 18, () =>
+        {
+            string dir = System.IO.Path.Combine(Application.streamingAssetsPath, "mods");
+            if (!System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = dir, UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[UI] Mod klasörü açılamadı: {ex.Message}");
+                Application.OpenURL("file://" + dir.Replace("\\", "/"));
+            }
+        }, 44);
+        HudKit.Size(openBtn.gameObject, prefW: 200);
+
+        // Yeniden Tara Butonu
+        var refreshBtn = HudKit.MakeButton(header, LocalizationManager.Get("mods_refresh"), HudTheme.Action, Color.white, 18, () =>
+        {
+            DemocracySim.Engine.Data.ModManager.DiscoverMods();
+            Notify(LocalizationManager.Get("mods_refreshed"), false);
+            BuildModsPage(c, e);
+        }, 44);
+        HudKit.Size(refreshBtn.gameObject, prefW: 160);
+
+        // Açıklama
+        HudKit.Label(c, LocalizationManager.Get("mods_desc"), 18, HudTheme.Dim);
+
+        var mods = DemocracySim.Engine.Data.ModManager.LoadedMods;
+        if (mods == null || mods.Count == 0)
+        {
+            var emptyCard = Card(c, null);
+            HudKit.Label(emptyCard, LocalizationManager.Get("mods_empty"), 20, HudTheme.Dim, TextAlignmentOptions.Center);
+            return;
+        }
+
+        foreach (var mod in mods)
+        {
+            var m = mod;
+            var card = Card(c, null);
+            var row = HudKit.NewRect(card, "ModRow");
+            HudKit.HStack(row.gameObject, 12, 0, TextAnchor.MiddleLeft, false, true);
+
+            // Bilgi Bölümü
+            var info = HudKit.NewRect(row, "Info");
+            HudKit.VStack(info.gameObject, 4, 0);
+            HudKit.Size(info.gameObject, flexW: 1);
+
+            string titleStr = $"{Clean(m.Name)}  <size=17><color=#{ColorUtility.ToHtmlStringRGB(HudTheme.Dim)}>v{Clean(m.Version)} • {Clean(m.Author)}</color></size>";
+            HudKit.Label(info, titleStr, 24, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
+
+            string desc = string.IsNullOrEmpty(m.Description) ? "" : Clean(m.Description);
+            if (!string.IsNullOrEmpty(desc))
+            {
+                HudKit.Label(info, desc, 18, HudTheme.Text);
+            }
+
+            if (!string.IsNullOrEmpty(m.FolderPath))
+            {
+                HudKit.Label(info, $"<size=15><color=#{ColorUtility.ToHtmlStringRGB(HudTheme.Dim)}>{Clean(m.FolderPath)}</color></size>", 15, HudTheme.Dim);
+            }
+
+            // Durum / Toggle Butonu
+            bool isEnabled = m.Enabled;
+            var toggleBtn = HudKit.MakeButton(row, isEnabled ? LocalizationManager.Get("mod_active") : LocalizationManager.Get("mod_inactive"),
+                isEnabled ? HudTheme.Good : HudTheme.Dim, isEnabled ? HudTheme.Dark : HudTheme.Text, 19, () =>
+                {
+                    DemocracySim.Engine.Data.ModManager.SetModEnabled(m.Id, !m.Enabled);
+                    Notify($"{m.Name}: {(m.Enabled ? LocalizationManager.Get("mod_active") : LocalizationManager.Get("mod_inactive"))}", false);
+                    BuildModsPage(c, e);
+                }, 48);
+            HudKit.Size(toggleBtn.gameObject, prefW: 130);
+        }
+    }
+
     public void ShowWorldNews(List<string> worldActions)
 {
     if (worldNewsText == null) return;
     if (worldActions == null || worldActions.Count == 0)
     {
-        worldNewsText.text = "Bugün dünya sahnesinde önemli bir gelişme yok.";
+        worldNewsText.text = LocalizationManager.Get("world_news_none_today");
         return;
     }
     var sb = new StringBuilder();
@@ -245,7 +367,33 @@ HudKit.Label(c, $"Kazanılan: {globalUnlocked} / {am.TotalAchievements} (global)
 
 private void OnLanguageChanged()
 {
-    // Tüm sekmeleri dirty yap
+    if (langButton != null)
+    {
+        var txt = langButton.GetComponentInChildren<TextMeshProUGUI>();
+        if (txt != null) txt.text = LocalizationManager.CurrentLanguage == Language.Turkish ? "[DİL: TR]" : "[LANG: EN]";
+    }
+    if (nextTurnButton != null)
+    {
+        var txt = nextTurnButton.GetComponentInChildren<TextMeshProUGUI>();
+        if (txt != null) txt.text = LocalizationManager.Get("next_turn").ToUpper();
+    }
+    if (chipCapital != null && chipCapital.Label != null) chipCapital.Label.text = LocalizationManager.Get("hud_capital");
+    if (chipLegit != null && chipLegit.Label != null) chipLegit.Label.text = LocalizationManager.Get("hud_legit");
+    if (chipInfl != null && chipInfl.Label != null) chipInfl.Label.text = LocalizationManager.Get("hud_inflation");
+    if (chipElection != null && chipElection.Label != null) chipElection.Label.text = LocalizationManager.Get("hud_election");
+    if (chipCoup != null && chipCoup.Label != null) chipCoup.Label.text = LocalizationManager.Get("hud_coup");
+
+    foreach (var t in tabs)
+    {
+        t.Title = GetTabTitle(t.Key);
+        if (t.Button != null)
+        {
+            var txt = t.Button.GetComponentInChildren<TextMeshProUGUI>();
+            if (txt != null) txt.text = Clean(t.Title);
+        }
+    }
+
+    RefreshActionBar(_lastOpposition);
     MarkAllDirty();
     RebuildCurrent();
     Debug.Log($"[UI] Dil değişti: {LocalizationManager.CurrentLanguage}");
@@ -307,9 +455,9 @@ private void OnAchievementUnlocked(AchievementUnlockedEvent e)
 
         var id = HudKit.NewRect(bar.transform, "Identity");
         HudKit.VStack(id.gameObject, 2, 6, TextAnchor.MiddleLeft);
-        HudKit.Size(id.gameObject, prefW: 400);
+        HudKit.Size(id.gameObject, prefW: 440);
         roleText = HudKit.Label(id, "", 21, HudTheme.Good, TextAlignmentOptions.Left, FontStyles.Bold);
-        titleText = HudKit.Label(id, "", 32, HudTheme.Text, TextAlignmentOptions.Left, FontStyles.Bold);
+        titleText = HudKit.Label(id, "", 28, HudTheme.Text, TextAlignmentOptions.Left, FontStyles.Bold);
 
         chipCapital = MakeChip(bar.transform, LocalizationManager.Get("hud_capital"));
 chipLegit = MakeChip(bar.transform, LocalizationManager.Get("hud_legit"));
@@ -320,8 +468,21 @@ chipCoup = MakeChip(bar.transform, LocalizationManager.Get("hud_coup"));
         var spacer = HudKit.NewRect(bar.transform, "Spacer");
         HudKit.Size(spacer.gameObject, flexW: 1);
 
+        var onlineBtn = HudKit.MakeButton(bar.transform, "[ONLINE LOBİ]", HudTheme.PanelHi, HudTheme.Action, 18, () =>
+        {
+            new DemocracySim.UI.Presenters.OnlineLobbyPresenter(this).Show();
+        }, 68);
+        HudKit.Size(onlineBtn.gameObject, prefW: 160);
+
+        langButton = HudKit.MakeButton(bar.transform, LocalizationManager.CurrentLanguage == Language.Turkish ? "[DİL: TR]" : "[LANG: EN]", HudTheme.PanelHi, HudTheme.Gold, 20, () =>
+        {
+            Language nextLang = LocalizationManager.CurrentLanguage == Language.Turkish ? Language.English : Language.Turkish;
+            LocalizationManager.SetLanguage(nextLang);
+        }, 68);
+        HudKit.Size(langButton.gameObject, prefW: 130);
+
         nextTurnButton = HudKit.MakeButton(bar.transform, LocalizationManager.Get("next_turn").ToUpper(), HudTheme.Gold, HudTheme.Dark, 28, null, 68);
-        HudKit.Size(nextTurnButton.gameObject, prefW: 250);
+        HudKit.Size(nextTurnButton.gameObject, prefW: 230);
     }
 
     Chip MakeChip(Transform parent, string label)
@@ -339,11 +500,11 @@ chipCoup = MakeChip(bar.transform, LocalizationManager.Get("hud_coup"));
     {
         var nav = HudKit.Box(hudRoot, "Nav", HudTheme.Panel);
         HudKit.Place(nav.rectTransform, new Vector2(0, 0), new Vector2(0, 1), new Vector2(16, 96), new Vector2(236, -112));
-        HudKit.VStack(nav.gameObject, 8, 12, TextAnchor.UpperCenter);
+        HudKit.VStack(nav.gameObject, 6, 10, TextAnchor.UpperCenter);
         foreach (var t in tabs)
         {
             string key = t.Key;
-            t.Button = HudKit.MakeButton(nav.transform, t.Title, HudTheme.PanelHi, HudTheme.Text, 23, () => SwitchTab(key), 64);
+            t.Button = HudKit.MakeButton(nav.transform, t.Title, HudTheme.PanelHi, HudTheme.Text, 21, () => SwitchTab(key), 54);
         }
     }
 
@@ -370,23 +531,23 @@ chipCoup = MakeChip(bar.transform, LocalizationManager.Get("hud_coup"));
         HudKit.VStack(side.gameObject, 10, 14);
 
         // FAZ 0: Dünya haberleri (AI ülkelerden)
-        HudKit.Label(side.transform, "DÜNYA HABERLERİ", 19, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
+        HudKit.Label(side.transform, LocalizationManager.Get("side_world_news"), 19, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
         var worldNewsBox = HudKit.Box(side.transform, "WorldNews", HudTheme.PanelHi);
         HudKit.Size(worldNewsBox.gameObject, prefH: 150, minH: 150);
-        worldNewsText = HudKit.Label(worldNewsBox.transform, "Henüz dünya haberi yok.", 17, HudTheme.Text);
+        worldNewsText = HudKit.Label(worldNewsBox.transform, LocalizationManager.Get("world_news_none"), 17, HudTheme.Text);
         HudKit.Fill(worldNewsText.rectTransform, 10, 8, 10, 8);
         worldNewsText.overflowMode = TextOverflowModes.Ellipsis;
 
         // Günün haberleri
-        HudKit.Label(side.transform, "GÜNÜN HABERLERİ", 19, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
+        HudKit.Label(side.transform, LocalizationManager.Get("side_news"), 19, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
         var newsBox = HudKit.Box(side.transform, "News", HudTheme.PanelHi);
         HudKit.Size(newsBox.gameObject, prefH: 300, minH: 300);
-        newsText = HudKit.Label(newsBox.transform, "Henüz haber yok.", 20, HudTheme.Text);
+        newsText = HudKit.Label(newsBox.transform, LocalizationManager.Get("news_none"), 20, HudTheme.Text);
         HudKit.Fill(newsText.rectTransform, 12, 10, 12, 10);
         newsText.overflowMode = TextOverflowModes.Ellipsis;
 
         // Olay günlüğü
-        HudKit.Label(side.transform, "OLAY GÜNLÜĞÜ", 19, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
+        HudKit.Label(side.transform, LocalizationManager.Get("side_log"), 19, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
         var logRoot = HudKit.ScrollView(side.transform, "Log", out logContent, 8, 6);
         logScroll = logRoot.GetComponent<ScrollRect>();
         HudKit.Size(logRoot.gameObject, flexH: 1, minH: 200);
@@ -447,6 +608,7 @@ chipCoup = MakeChip(bar.transform, LocalizationManager.Get("hud_coup"));
 
     public void SwitchTab(string tabKey)
     {
+        AudioManager.Instance?.PlayClick();
         currentTab = tabKey;
         foreach (var t in tabs)
         {
@@ -500,16 +662,16 @@ AddAction(LocalizationManager.Get("protest"), HudTheme.Hex("8B2A2A"), _onRally);
         if (inCrisis)
     {
         bool canRun = CandidateManager.CanRun(lastCountry.Engine);
-        string label = canRun ? "Adaylık Kampanyası" : "ADAYLIK KRIZI (UYARI)";
+        string label = canRun ? LocalizationManager.Get("candidate_campaign") : LocalizationManager.Get("candidate_crisis_warning");
         Color bg = canRun ? HudTheme.Action : HudTheme.Bad;
         AddAction(label, bg, _onCandidateCampaign);
     }
     else
     {
-        AddAction("Parti Kur", HudTheme.Gold, _onFoundParty);
+        AddAction(LocalizationManager.Get("party_found_btn"), HudTheme.Gold, _onFoundParty);
     }
 
-    AddAction("Protesto Düzenle", HudTheme.Hex("8B2A2A"), _onRally);
+    AddAction(LocalizationManager.Get("protest_organize"), HudTheme.Hex("8B2A2A"), _onRally);
 }
         else
 {
@@ -541,20 +703,19 @@ AddAction(LocalizationManager.Get("rally"), HudTheme.Hex("7A5A12"), _onRally);
         }
         cur = Snapshot(e);
 
-        roleText.text = opp ? Colored("MUHALEFET", HudTheme.Bad) : Colored("HÜKÜMET", HudTheme.Good);
-        titleText.text = Clean(playerCountry.Name) + "   |   " + 
-                 DemocracySim.Engine.Core.PlayerProfile.PlayerName + 
-                 "   |   Tur " + turn;
+        roleText.text = (opp ? Colored(LocalizationManager.Get("role_opposition"), HudTheme.Bad) : Colored(LocalizationManager.Get("role_government"), HudTheme.Good))
+                        + "   " + Colored(LocalizationManager.Get("turn_label", turn), HudTheme.Dim);
+        titleText.text = Clean(playerCountry.Name) + "  |  " + DemocracySim.Engine.Core.PlayerProfile.PlayerName;
 
         float legit = e.Legitimacy.CurrentLegitimacy;
         chipCapital.Value.text = e.PoliticalCapital.ToString("F0");
-        chipLegit.Label.text = opp ? "HALK DESTEĞİ" : "MEŞRUİYET";
+        chipLegit.Label.text = opp ? LocalizationManager.Get("hud_public_support") : LocalizationManager.Get("hud_legit_title");
         chipLegit.Value.text = legit.ToString("F1") + "%";
         chipLegit.Value.color = GoodHigh(legit, 55f, 35f);
         chipInfl.Value.text = "%" + e.Economy.Inflation.ToString("F1");
         chipInfl.Value.color = GoodLow(e.Economy.Inflation, 6f, 15f);
-        chipElection.Label.text = opp ? "İKTİDARA KALAN" : "SEÇİME KALAN";
-        chipElection.Value.text = e.TurnUntilElection + " tur";
+        chipElection.Label.text = opp ? LocalizationManager.Get("hud_turns_to_power") : LocalizationManager.Get("hud_turns_to_election");
+        chipElection.Value.text = LocalizationManager.Get("turns_suffix_fmt", e.TurnUntilElection);
         float coup = e.Army.CoupRiskPercent;
         chipCoup.Value.text = opp ? "%" + coup.ToString("F0") : e.Army.CoupRiskLabel;
         chipCoup.Value.color = GoodLow(coup, 20f, 50f);
@@ -587,7 +748,7 @@ AddAction(LocalizationManager.Get("rally"), HudTheme.Hex("7A5A12"), _onRally);
     public void ShowNews(List<NewsArticle> news)
     {
         if (newsText == null) return;
-        if (news == null || news.Count == 0) { newsText.text = "Bugün önemli bir haber yok."; return; }
+        if (news == null || news.Count == 0) { newsText.text = LocalizationManager.Get("news_none_today"); return; }
         var sb = new StringBuilder();
         foreach (var n in news)
         {
@@ -684,8 +845,8 @@ AddAction(LocalizationManager.Get("rally"), HudTheme.Hex("7A5A12"), _onRally);
     {
         if (relationLabel == null) return;
         Color col = relationValue >= 20f ? HudTheme.Good : (relationValue <= -20f ? HudTheme.Bad : HudTheme.Warn);
-        relationLabel.text = "İlişki: " + Colored((relationValue >= 0 ? "+" : "") + relationValue.ToString("F0"), col);
-        networkLabel.text = "Casus Ağı Gücü: %" + networkStrength.ToString("F0");
+        relationLabel.text = LocalizationManager.Get("diplo_relation_fmt", Colored((relationValue >= 0 ? "+" : "") + relationValue.ToString("F0"), col));
+        networkLabel.text = LocalizationManager.Get("diplo_network_fmt", networkStrength.ToString("F0"));
         HudKit.ClearChildren(relationBarHolder);
         HudKit.Bar(relationBarHolder, (relationValue + 100f) / 200f, col, 12f);
 
@@ -775,7 +936,7 @@ AddAction(LocalizationManager.Get("rally"), HudTheme.Hex("7A5A12"), _onRally);
         return HudKit.MakeButton(card, Clean(label), bg, fg, 24, onClick, 58);
     }
 
-    public void ShowChoicePopup(string title, List<(string label, Action onClick)> options, bool allowCancel = true, string closeLabel = "Vazgeç")
+    public void ShowChoicePopup(string title, List<(string label, Action onClick)> options, bool allowCancel = true, string closeLabel = null)
     {
         OpenModal(780, card =>
         {
@@ -793,7 +954,7 @@ AddAction(LocalizationManager.Get("rally"), HudTheme.Hex("7A5A12"), _onRally);
                     ModalButton(card, o.label, HudTheme.PanelHi, HudTheme.Text, () => { CloseModal(); if (o.onClick != null) o.onClick(); });
                 }
             }
-            if (allowCancel) ModalButton(card, closeLabel, HudTheme.Line, HudTheme.Dim, CloseModal);
+            if (allowCancel) ModalButton(card, closeLabel ?? LocalizationManager.Get("cancel"), HudTheme.Line, HudTheme.Dim, CloseModal);
         });
     }
 
@@ -805,9 +966,9 @@ public void ShowPlayerNamePrompt(Action<string> onConfirm)
 {
     OpenModal(600, card =>
     {
-        HudKit.Label(card, "ADINIZ", 38, HudTheme.Gold,
+        HudKit.Label(card, LocalizationManager.Get("player_name_prompt"), 38, HudTheme.Gold,
             TextAlignmentOptions.Center, FontStyles.Bold);
-        HudKit.Label(card, "Ülkeyi yönetecek liderin adı ne olsun?",
+        HudKit.Label(card, LocalizationManager.Get("player_name_desc"),
             22, HudTheme.Dim, TextAlignmentOptions.Center);
 
         // Input field
@@ -819,7 +980,7 @@ public void ShowPlayerNamePrompt(Action<string> onConfirm)
 
         var textArea = HudKit.NewRect(inputGO, "TextArea");
         HudKit.Fill(textArea, 12, 8, 12, 8);
-        var placeholder = HudKit.Label(textArea, "Örn: Ahmet Yılmaz",
+        var placeholder = HudKit.Label(textArea, LocalizationManager.Get("player_name_placeholder"),
             22, HudTheme.Dim, TextAlignmentOptions.Left);
         placeholder.fontStyle = FontStyles.Italic;
         var text = HudKit.Label(textArea, "", 22, HudTheme.Text,
@@ -832,10 +993,10 @@ public void ShowPlayerNamePrompt(Action<string> onConfirm)
         string selectedName = "";
         inputField.onValueChanged.AddListener(v => selectedName = v);
 
-        ModalButton(card, "BAŞLA", HudTheme.Gold, HudTheme.Dark, () =>
+        ModalButton(card, LocalizationManager.Get("start"), HudTheme.Gold, HudTheme.Dark, () =>
         {
             string finalName = string.IsNullOrWhiteSpace(selectedName)
-                ? "Başkan" : selectedName.Trim();
+                ? LocalizationManager.Get("default_player_name") : selectedName.Trim();
             CloseModal();
             onConfirm?.Invoke(finalName);
         });
@@ -848,15 +1009,15 @@ public void ShowPartyFoundPrompt(string reason, Action<string, string, float> on
 {
     OpenModal(680, card =>
     {
-        HudKit.Label(card, "PARTİ KUR", 38, HudTheme.Gold,
+        HudKit.Label(card, LocalizationManager.Get("party_found_title"), 38, HudTheme.Gold,
             TextAlignmentOptions.Center, FontStyles.Bold);
-        HudKit.Label(card, $"Sebep:\n{reason}", 20, HudTheme.Warn,
+        HudKit.Label(card, LocalizationManager.Get("party_reason_fmt", reason), 20, HudTheme.Warn,
             TextAlignmentOptions.Center);
-        HudKit.Label(card, $"Maliyet: {PartyFounder.FoundCost:F0} sermaye + {PartyFounder.FundCost:F0} fon",
+        HudKit.Label(card, LocalizationManager.Get("party_cost_fmt", PartyFounder.FoundCost.ToString("F0"), PartyFounder.FundCost.ToString("F0")),
             22, HudTheme.Dim, TextAlignmentOptions.Center);
 
         // Parti adı
-        HudKit.Label(card, "PARTİ ADI", 20, HudTheme.Gold,
+        HudKit.Label(card, LocalizationManager.Get("party_name_label"), 20, HudTheme.Gold,
             TextAlignmentOptions.Left, FontStyles.Bold);
         var nameInputGO = HudKit.NewRect(card, "PartyName");
         HudKit.Size(nameInputGO.gameObject, prefH: 50, minH: 50);
@@ -865,7 +1026,7 @@ public void ShowPartyFoundPrompt(string reason, Action<string, string, float> on
         var nameField = nameInputGO.gameObject.AddComponent<TMP_InputField>();
         var nameArea = HudKit.NewRect(nameInputGO, "TextArea");
         HudKit.Fill(nameArea, 12, 6, 12, 6);
-        var namePlaceholder = HudKit.Label(nameArea, "Örn: Halkın Sesi Partisi",
+        var namePlaceholder = HudKit.Label(nameArea, LocalizationManager.Get("party_name_placeholder"),
             20, HudTheme.Dim, TextAlignmentOptions.Left);
         namePlaceholder.fontStyle = FontStyles.Italic;
         var nameText = HudKit.Label(nameArea, "", 20, HudTheme.Text,
@@ -878,7 +1039,7 @@ public void ShowPartyFoundPrompt(string reason, Action<string, string, float> on
         nameField.onValueChanged.AddListener(v => pName = v);
 
         // Slogan
-        HudKit.Label(card, "SLOGAN", 20, HudTheme.Gold,
+        HudKit.Label(card, LocalizationManager.Get("party_slogan_label"), 20, HudTheme.Gold,
             TextAlignmentOptions.Left, FontStyles.Bold);
         var sloganInputGO = HudKit.NewRect(card, "Slogan");
         HudKit.Size(sloganInputGO.gameObject, prefH: 50, minH: 50);
@@ -887,7 +1048,7 @@ public void ShowPartyFoundPrompt(string reason, Action<string, string, float> on
         var sloganField = sloganInputGO.gameObject.AddComponent<TMP_InputField>();
         var sloganArea = HudKit.NewRect(sloganInputGO, "TextArea");
         HudKit.Fill(sloganArea, 12, 6, 12, 6);
-        var sloganPlaceholder = HudKit.Label(sloganArea, "Örn: Değişim şimdi!",
+        var sloganPlaceholder = HudKit.Label(sloganArea, LocalizationManager.Get("party_slogan_placeholder"),
             20, HudTheme.Dim, TextAlignmentOptions.Left);
         sloganPlaceholder.fontStyle = FontStyles.Italic;
         var sloganText = HudKit.Label(sloganArea, "", 20, HudTheme.Text,
@@ -900,7 +1061,7 @@ public void ShowPartyFoundPrompt(string reason, Action<string, string, float> on
         sloganField.onValueChanged.AddListener(v => pSlogan = v);
 
         // İdeoloji slider
-        HudKit.Label(card, "İDEOLOJİ (Sol ←→ Sağ)", 20, HudTheme.Gold,
+        HudKit.Label(card, LocalizationManager.Get("party_ideology_label"), 20, HudTheme.Gold,
             TextAlignmentOptions.Left, FontStyles.Bold);
         var sliderGO = HudKit.NewRect(card, "IdeologySlider");
         HudKit.Size(sliderGO.gameObject, prefH: 40, minH: 40);
@@ -909,7 +1070,7 @@ public void ShowPartyFoundPrompt(string reason, Action<string, string, float> on
         var slider = sliderGO.gameObject.AddComponent<Slider>();
         // Slider'ı basitçe yapalım — 3 buton ile seçim
         float[] ideologies = { -70f, -30f, 0f, 30f, 70f };
-        string[] labels = { "Sol", "Merkez-Sol", "Merkez", "Merkez-Sağ", "Sağ" };
+        string[] labels = { LocalizationManager.Get("ideology_left"), LocalizationManager.Get("ideology_center_left"), LocalizationManager.Get("ideology_center"), LocalizationManager.Get("ideology_center_right"), LocalizationManager.Get("ideology_right") };
         float selectedIdeo = 0f;
         var idRow = HudKit.NewRect(card, "IdeologyRow");
         HudKit.HStack(idRow.gameObject, 6, 0, TextAnchor.MiddleCenter, true, true);
@@ -923,35 +1084,54 @@ public void ShowPartyFoundPrompt(string reason, Action<string, string, float> on
             HudKit.Size(btn.gameObject, flexW: 1);
         }
 
-        ModalButton(card, "PARTİYİ KUR", HudTheme.Gold, HudTheme.Dark, () =>
+        ModalButton(card, LocalizationManager.Get("party_found_confirm"), HudTheme.Gold, HudTheme.Dark, () =>
         {
-            string finalName = string.IsNullOrWhiteSpace(pName) ? "Yeni Parti" : pName.Trim();
+            string finalName = string.IsNullOrWhiteSpace(pName) ? LocalizationManager.Get("party_default_name") : pName.Trim();
             string finalSlogan = string.IsNullOrWhiteSpace(pSlogan) ? "" : pSlogan.Trim();
             CloseModal();
             onConfirm?.Invoke(finalName, finalSlogan, selectedIdeo);
         });
-        ModalButton(card, "Vazgeç", HudTheme.Line, HudTheme.Dim, CloseModal);
+        ModalButton(card, LocalizationManager.Get("cancel"), HudTheme.Line, HudTheme.Dim, CloseModal);
     });
 }
 
     /// <summary>FAZ 4: Senaryo seçimi için özel modal — kartlar halinde gösterir.</summary>
+/// <summary>FAZ 4: Senaryo seçimi — ScrollView ile taşma engellendi.</summary>
 public void ShowScenarioPicker(List<DemocracySim.Engine.World.Scenario> scenarios, Action<DemocracySim.Engine.World.Scenario> onPick)
 {
-    if (scenarios == null || scenarios.Count == 0) return;
-
-    OpenModal(720, card =>
+    if (scenarios == null || scenarios.Count == 0)
     {
-        HudKit.Label(card, "SENARYO SEÇ", 38, HudTheme.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
-        HudKit.Label(card, "Zorluk seviyesi ve başlangıç koşullarını belirle.", 20, HudTheme.Dim, TextAlignmentOptions.Center);
+        Debug.LogWarning("[ScenarioPicker] Senaryo listesi boş!");
+        return;
+    }
+
+    Debug.Log($"[ScenarioPicker] {scenarios.Count} senaryo gösteriliyor.");
+
+    OpenModal(820, card =>
+    {
+        // Başlık
+        HudKit.Label(card, LocalizationManager.Get("scenario_pick"),
+            34, HudTheme.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
+        HudKit.Label(card, LocalizationManager.Get("scenario_desc"),
+            19, HudTheme.Dim, TextAlignmentOptions.Center);
+
+        // ═══════════════════════════════════════════════════
+        // SCROLLVIEW: Senaryo kartları burada, sabit yükseklik
+        // ═══════════════════════════════════════════════════
+        RectTransform content;
+        var scroll = HudKit.ScrollView(card, "ScenarioScroll", out content, 8, 10);
+        HudKit.Size(scroll.gameObject, prefH: 560, minH: 400);
 
         foreach (var sc in scenarios)
         {
-            var scenario = sc;
-            var scCard = HudKit.Box(card, "ScenarioCard", HudTheme.PanelHi);
-            HudKit.VStack(scCard.gameObject, 6, 14, TextAnchor.UpperLeft);
-            HudKit.Size(scCard.gameObject, minH: 130);
+            var scenario = sc;   // closure için kopya
 
-            // Zorluk etiketi
+            // Senaryo kartı
+            var scCard = HudKit.Box(content, "ScenarioCard", HudTheme.PanelHi);
+            HudKit.VStack(scCard.gameObject, 4, 12, TextAnchor.UpperLeft);
+            HudKit.Size(scCard.gameObject, minH: 110);
+
+            // Zorluk etiketi (renkli)
             Color diffColor = scenario.Difficulty switch
             {
                 "Kolay"     => HudTheme.Good,
@@ -960,34 +1140,41 @@ public void ShowScenarioPicker(List<DemocracySim.Engine.World.Scenario> scenario
                 "Çok Zor"   => HudTheme.Bad,
                 _           => HudTheme.Dim
             };
-            HudKit.Label(scCard.transform, $"[{scenario.Difficulty}]", 18, diffColor, 
-                TextAlignmentOptions.Left, FontStyles.Bold);
+            HudKit.Label(scCard.transform, $"[{DifficultyLabel(scenario.Difficulty)}]",
+                17, diffColor, TextAlignmentOptions.Left, FontStyles.Bold);
 
-            // Başlık
-            HudKit.Label(scCard.transform, scenario.Name, 26, HudTheme.Text, 
+            // Senaryo adı
+            HudKit.Label(scCard.transform, scenario.Name, 24, HudTheme.Text,
                 TextAlignmentOptions.Left, FontStyles.Bold);
 
             // Açıklama
-            HudKit.Label(scCard.transform, scenario.Description, 19, HudTheme.Dim);
+            HudKit.Label(scCard.transform, scenario.Description, 18, HudTheme.Dim);
 
-            // Özel not
+            // Özel not (varsa)
             if (!string.IsNullOrEmpty(scenario.SpecialNote))
             {
-                HudKit.Label(scCard.transform, "! " + scenario.SpecialNote, 18, HudTheme.Warn);
+                HudKit.Label(scCard.transform, "! " + scenario.SpecialNote, 17, HudTheme.Warn);
             }
 
-            // Seç butonu
-            var btn = HudKit.MakeButton(scCard.transform, "Bu Senaryoyu Seç", 
-                HudTheme.Action, Color.white, 20, () =>
+            // Seç butonu — tıklama testi için log
+            var btn = HudKit.MakeButton(scCard.transform,
+                LocalizationManager.Get("scenario_select_btn"),
+                HudTheme.Action, Color.white, 19, () =>
             {
+                Debug.Log($"[ScenarioPicker] Senaryo seçildi: {scenario.Id} / {scenario.Name}");
                 CloseModal();
-                onPick?.Invoke(scenario);
-            }, 48);
-            HudKit.Size(btn.gameObject, prefH: 48);
+
+                if (onPick != null)
+                    onPick.Invoke(scenario);
+                else
+                    Debug.LogError("[ScenarioPicker] onPick callback NULL!");
+            }, 44);
+            HudKit.Size(btn.gameObject, prefH: 44);
         }
 
-        // İptal butonu
-        HudKit.MakeButton(card, "Vazgeç", HudTheme.Line, HudTheme.Dim, 22, CloseModal, 56);
+        // Vazgeç butonu (scroll dışında, her zaman görünür)
+        HudKit.MakeButton(card, LocalizationManager.Get("cancel"),
+            HudTheme.Line, HudTheme.Dim, 20, CloseModal, 50);
     });
 }
 
@@ -1001,7 +1188,7 @@ public void ShowScenarioPicker(List<DemocracySim.Engine.World.Scenario> scenario
 
             if (gameEvent.IsNotificationOnly)
             {
-                ModalButton(card, "Tamam", HudTheme.Gold, HudTheme.Dark, () => { CloseModal(); if (onChoiceSelected != null) onChoiceSelected(null); });
+                ModalButton(card, LocalizationManager.Get("ok"), HudTheme.Gold, HudTheme.Dark, () => { CloseModal(); if (onChoiceSelected != null) onChoiceSelected(null); });
                 return;
             }
             foreach (var ch in gameEvent.Choices)
@@ -1017,16 +1204,16 @@ public void ShowScenarioPicker(List<DemocracySim.Engine.World.Scenario> scenario
     {
         OpenModal(760, card =>
         {
-            HudKit.Label(card, "Söylem Seçin", 38, HudTheme.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
-            HudKit.Label(card, Clean(policyName) + ":  " + amount.ToString("+0;-0") + " birim", 26, HudTheme.Text, TextAlignmentOptions.Center);
-            HudKit.Label(card, "Söylem, yasanın ideolojik konumunu kaydırır ve meclis oylamasını etkiler.", 20, HudTheme.Dim, TextAlignmentOptions.Center);
-            string[] frames = { "Halk İçin", "Sermaye İçin", "Devlet İçin" };
+            HudKit.Label(card, LocalizationManager.Get("frame_pick_title"), 38, HudTheme.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
+            HudKit.Label(card, LocalizationManager.Get("frame_amount_fmt", Clean(policyName), amount.ToString("+0;-0")), 26, HudTheme.Text, TextAlignmentOptions.Center);
+            HudKit.Label(card, LocalizationManager.Get("frame_pick_desc"), 20, HudTheme.Dim, TextAlignmentOptions.Center);
+            var frames = new List<(string key, string label)> { ("Halk İçin", LocalizationManager.Get("frame_people")), ("Sermaye İçin", LocalizationManager.Get("frame_capital")), ("Devlet İçin", LocalizationManager.Get("frame_state")) };
             foreach (var f in frames)
             {
-                var frame = f;
-                ModalButton(card, frame, HudTheme.PanelHi, HudTheme.Text, () => { CloseModal(); if (onPick != null) onPick(frame); });
+                var frame = f.key;
+                ModalButton(card, f.label, HudTheme.PanelHi, HudTheme.Text, () => { CloseModal(); if (onPick != null) onPick(frame); });
             }
-            ModalButton(card, "Vazgeç", HudTheme.Line, HudTheme.Dim, CloseModal);
+            ModalButton(card, LocalizationManager.Get("cancel"), HudTheme.Line, HudTheme.Dim, CloseModal);
         });
     }
 
@@ -1039,31 +1226,43 @@ public void ShowScenarioPicker(List<DemocracySim.Engine.World.Scenario> scenario
             string selTheme = "Umut";
             TextMeshProUGUI desc = null;
 
-            HudKit.Label(card, "SİYASİ MİTİNG", 40, HudTheme.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
-            HudKit.Label(card, "Maliyet: " + cost.ToString("F0") + " siyasi sermaye. Her miting seçim kampanyasına da yatırım sayılır.", 22, HudTheme.Dim, TextAlignmentOptions.Center);
+            HudKit.Label(card, LocalizationManager.Get("rally_title"), 40, HudTheme.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
+            HudKit.Label(card, LocalizationManager.Get("rally_cost_fmt", cost.ToString("F0")), 22, HudTheme.Dim, TextAlignmentOptions.Center);
 
-            HudKit.Label(card, "HEDEF GRUP", 19, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
+            HudKit.Label(card, LocalizationManager.Get("rally_target_group"), 19, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
             var gi = new List<(string key, string label)>();
             foreach (var g in groups) gi.Add((g.Id, g.Name));
             ChipGroup(card, gi, selGroup, k => { selGroup = k; }, false, 19f, 66f);
 
-            HudKit.Label(card, "TEMA", 19, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
-            var themes = new List<(string key, string label)> { ("Umut", "Umut"), ("Öfke", "Öfke"), ("Güven", "Güven") };
+            HudKit.Label(card, LocalizationManager.Get("rally_theme"), 19, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
+            var themes = new List<(string key, string label)> { ("Umut", LocalizationManager.Get("theme_hope")), ("Öfke", LocalizationManager.Get("theme_anger")), ("Güven", LocalizationManager.Get("theme_trust")) };
             ChipGroup(card, themes, selTheme, k => { selTheme = k; if (desc != null) desc.text = ThemeDesc(k); }, false, 22f, 60f);
             desc = HudKit.Label(card, ThemeDesc(selTheme), 21, HudTheme.Text, TextAlignmentOptions.Center);
 
-            ModalButton(card, "MİTİNGİ BAŞLAT", HudTheme.Gold, HudTheme.Dark, () => { CloseModal(); if (onStart != null) onStart(selGroup, selTheme); });
-            ModalButton(card, "Vazgeç", HudTheme.Line, HudTheme.Dim, CloseModal);
+            ModalButton(card, LocalizationManager.Get("rally_start_btn"), HudTheme.Gold, HudTheme.Dark, () => { CloseModal(); if (onStart != null) onStart(selGroup, selTheme); });
+            ModalButton(card, LocalizationManager.Get("cancel"), HudTheme.Line, HudTheme.Dim, CloseModal);
         });
+    }
+
+    static string DifficultyLabel(string d)
+    {
+        switch (d)
+        {
+            case "Kolay": return LocalizationManager.Get("diff_easy");
+            case "Normal": return LocalizationManager.Get("diff_normal");
+            case "Zor": return LocalizationManager.Get("diff_hard");
+            case "Çok Zor": return LocalizationManager.Get("diff_very_hard");
+            default: return d;
+        }
     }
 
     static string ThemeDesc(string theme)
     {
         switch (theme)
         {
-            case "Öfke": return "Öfke: Etkisi büyüktür ama kutuplaştırır, huzursuzluğu artırır. Muhalefetteyken hükümete duyulan memnuniyeti düşürür.";
-            case "Güven": return "Güven: İktidardayken meşruiyeti yükseltir. Muhalefetteyken kampanya yatırımını güçlendirir.";
-            default: return "Umut: İktidardayken hedef grubun memnuniyetini artırır ve sokak huzursuzluğunu biraz düşürür.";
+            case "Öfke": return LocalizationManager.Get("rally_theme_desc_anger");
+            case "Güven": return LocalizationManager.Get("rally_theme_desc_trust");
+            default: return LocalizationManager.Get("rally_theme_desc_hope");
         }
     }
 
@@ -1071,9 +1270,9 @@ public void ShowScenarioPicker(List<DemocracySim.Engine.World.Scenario> scenario
     {
         OpenModal(860, card =>
         {
-            HudKit.Label(card, "SEÇİM SONUÇLARI", 40, HudTheme.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
-            HudKit.Label(card, isPlayerWinner ? "ZAFER" : "YENİLGİ", 64, isPlayerWinner ? HudTheme.Good : HudTheme.Bad, TextAlignmentOptions.Center, FontStyles.Bold);
-            HudKit.Label(card, "Kazanan: " + Clean(winnerName), 27, HudTheme.Text, TextAlignmentOptions.Center);
+            HudKit.Label(card, LocalizationManager.Get("election_results_title"), 40, HudTheme.Gold, TextAlignmentOptions.Center, FontStyles.Bold);
+            HudKit.Label(card, isPlayerWinner ? LocalizationManager.Get("election_victory") : LocalizationManager.Get("election_defeat"), 64, isPlayerWinner ? HudTheme.Good : HudTheme.Bad, TextAlignmentOptions.Center, FontStyles.Bold);
+            HudKit.Label(card, LocalizationManager.Get("election_winner_fmt", Clean(winnerName)), 27, HudTheme.Text, TextAlignmentOptions.Center);
 
             if (partyVotes != null)
             {
@@ -1083,7 +1282,7 @@ public void ShowScenarioPicker(List<DemocracySim.Engine.World.Scenario> scenario
                     StatRow(card, Clean(kv.Key), "%" + kv.Value.ToString("F1"), kv.Value / 100f, mine ? HudTheme.Gold : HudTheme.Info, "");
                 }
             }
-            ModalButton(card, isPlayerWinner ? "Devleti Yönetmeye Devam Et" : "Muhalefet Görevine Başla", HudTheme.Gold, HudTheme.Dark, CloseModal);
+            ModalButton(card, isPlayerWinner ? LocalizationManager.Get("election_continue_gov") : LocalizationManager.Get("election_start_opp"), HudTheme.Gold, HudTheme.Dark, CloseModal);
         });
     }
 
@@ -1108,12 +1307,12 @@ public void ShowScenarioPicker(List<DemocracySim.Engine.World.Scenario> scenario
     internal string PolicyTags(SimulationEngine e, SimPolicy p)
     {
         var parts = new List<string>();
-        parts.Add(p.IsActive ? Colored("AKTİF", HudTheme.Good) : "pasif");
+        parts.Add(p.IsActive ? Colored(LocalizationManager.Get("policy_active"), HudTheme.Good) : LocalizationManager.Get("policy_inactive"));
         float a = p.IdeologicalAlignment;
-        parts.Add(a < -20f ? "Sol" : (a > 20f ? "Sağ" : "Merkez"));
-        if (e.ProposedPolicies.Contains(p)) parts.Add(Colored("MECLİS GÜNDEMİNDE", HudTheme.Warn));
+        parts.Add(a < -20f ? LocalizationManager.Get("ideology_left") : (a > 20f ? LocalizationManager.Get("ideology_right") : LocalizationManager.Get("ideology_center")));
+        if (e.ProposedPolicies.Contains(p)) parts.Add(Colored(LocalizationManager.Get("policy_on_agenda"), HudTheme.Warn));
         foreach (var pend in e.Universe.Pending)
-            if (pend.PolicyId == p.Id) parts.Add(Colored("BÜROKRASİDE (" + pend.TurnsLeft + " tur)", HudTheme.Warn));
+            if (pend.PolicyId == p.Id) parts.Add(Colored(LocalizationManager.Get("policy_in_bureaucracy_fmt", pend.TurnsLeft), HudTheme.Warn));
         return string.Join("   |   ", parts);
     }
 
@@ -1138,11 +1337,11 @@ public void ShowScenarioPicker(List<DemocracySim.Engine.World.Scenario> scenario
     {
         switch (r)
         {
-            case ActorRole.Minister: return "Bakan";
-            case ActorRole.OppositionLeader: return "Muhalefet lideri";
-            case ActorRole.MP: return "Milletvekili";
-            case ActorRole.Activist: return "Aktivist";
-            case ActorRole.Oligarch: return "Oligark";
+            case ActorRole.Minister: return LocalizationManager.Get("role_minister");
+            case ActorRole.OppositionLeader: return LocalizationManager.Get("role_opposition_leader");
+            case ActorRole.MP: return LocalizationManager.Get("role_mp");
+            case ActorRole.Activist: return LocalizationManager.Get("role_activist");
+            case ActorRole.Oligarch: return LocalizationManager.Get("role_oligarch");
             default: return r.ToString();
         }
     }
@@ -1151,9 +1350,9 @@ public void ShowScenarioPicker(List<DemocracySim.Engine.World.Scenario> scenario
     {
         switch (f)
         {
-            case PoliticalFaction.Technocrat: return "Teknokrat";
-            case PoliticalFaction.Ideologue: return "İdeolog";
-            default: return "Sadık";
+            case PoliticalFaction.Technocrat: return LocalizationManager.Get("faction_technocrat");
+            case PoliticalFaction.Ideologue: return LocalizationManager.Get("faction_ideologue");
+            default: return LocalizationManager.Get("faction_loyalist");
         }
     }
 
@@ -1161,11 +1360,16 @@ public void ShowScenarioPicker(List<DemocracySim.Engine.World.Scenario> scenario
     {
         switch (t)
         {
-            case ActorTrait.Ambitious: return "hırslı";
-            case ActorTrait.Populist: return "popülist";
-            case ActorTrait.Cautious: return "temkinli";
-            case ActorTrait.Corrupt: return "yolsuz";
-            case ActorTrait.LoyalistsHeart: return "sadık";
+            case ActorTrait.Ambitious: return LocalizationManager.Get("trait_ambitious");
+            case ActorTrait.Populist: return LocalizationManager.Get("trait_populist");
+            case ActorTrait.Cautious: return LocalizationManager.Get("trait_cautious");
+            case ActorTrait.Corrupt: return LocalizationManager.Get("trait_corrupt");
+            case ActorTrait.LoyalistsHeart: return LocalizationManager.Get("trait_loyal");
+            case ActorTrait.BusinessPerson: return "İş İnsanı";
+            case ActorTrait.Activist: return "Aktivist";
+            case ActorTrait.Technocrat: return "Teknokrat";
+            case ActorTrait.Academic: return "Akademisyen";
+            case ActorTrait.Bureaucrat: return "Bürokrat";
             default: return t.ToString();
         }
     }
@@ -1196,7 +1400,7 @@ public void ShowScenarioPicker(List<DemocracySim.Engine.World.Scenario> scenario
         HudKit.Label(card, label, 17, HudTheme.Dim, TextAlignmentOptions.Left, FontStyles.Bold);
         var valueLabel = HudKit.Label(card, value, 40, color, TextAlignmentOptions.Left, FontStyles.Bold);
         HudKit.Bar(card, v01, color, 10f);
-        var d = HudKit.Label(card, string.IsNullOrEmpty(delta) ? " " : delta + " son turdan", 17, HudTheme.Dim);
+        var d = HudKit.Label(card, string.IsNullOrEmpty(delta) ? " " : delta + " " + LocalizationManager.Get("since_last_turn"), 17, HudTheme.Dim);
         d.richText = true;
     }
 
@@ -1298,7 +1502,7 @@ internal void DrawSparkline(Transform parent, List<float> history, Color color)
     }
 
     // Min/Max/Avg etiketi
-    var label = HudKit.Label(holder, $"min:{min:F0} max:{max:F0} ort:{avg:F0}", 
+    var label = HudKit.Label(holder, LocalizationManager.Get("sparkline_fmt", min.ToString("F0"), max.ToString("F0"), avg.ToString("F0")), 
         14, HudTheme.Dim, TextAlignmentOptions.Right);
     HudKit.Size(label.gameObject, prefW: 180);
 }

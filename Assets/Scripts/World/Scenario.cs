@@ -13,6 +13,8 @@ namespace DemocracySim.Engine.World
         public string Id { get; set; }
         public string Name { get; set; }
         public string Description { get; set; }
+            public Dictionary<string, float> EngineOverrides { get; set; } 
+        = new Dictionary<string, float>();
         public string Difficulty { get; set; }   // "Kolay", "Normal", "Zor", "Çok Zor"
 
         // Başlangıç değerleri
@@ -75,8 +77,15 @@ namespace DemocracySim.Engine.World
                         { "military_strength", 80f },
                         { "crime_rate", 55f },
                         { "police_funding", 30f }
-                    }
+                    },
+                    EngineOverrides = new Dictionary<string, float>
+    {
+        { "ArmySatisfaction", 20f },      // ← YENİ
+        { "CoupRiskPercent", 60f },        // ← YENİ
+        { "LoyaltyToLeader", 25f }         // ← YENİ
+    }
                 },
+             
                 new Scenario
                 {
                     Id = "new_democracy",

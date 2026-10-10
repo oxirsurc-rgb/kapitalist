@@ -14,46 +14,55 @@ namespace DemocracySim.Engine.World
             = new Dictionary<string, AIPersonality>();
 
                public static void ExecuteAITurn(Country country, WorldManager world)
-        {
-            var e = country.Engine;
-            var u = e.Universe;
+{
+    var e = country.Engine;
+    var u = e.Universe;
 
-            if (!CountryPersonalities.ContainsKey(country.Id))
-            {
-                var types = (AIPersonalityType[])Enum.GetValues(typeof(AIPersonalityType));
-                CountryPersonalities[country.Id] = new AIPersonality(types[SimRng.Next(types.Length)]);
-            }
-            var personality = CountryPersonalities[country.Id];
+    // ═══════════════════════════════════════════════════════════
+    // FAZ 17: Hibrit AI Brain entegrasyonu
+    // ═══════════════════════════════════════════════════════════
+    if (!CountryBrains.ContainsKey(country.Id))
+    {
+        var types = (AIPersonalityType[])Enum.GetValues(typeof(AIPersonalityType));
+        var personality = new AIPersonality(types[SimRng.Next(types.Length)]);
+        CountryBrains[country.Id] = new AIBrain(country.Id, personality, e);
+    }
 
-            // FAZ 0: Öğrenme hafızasını yükle (yoksa oluştur)
-            var memory = GetOrCreateMemory(country.Id);
+    var brain = CountryBrains[country.Id];
 
-            // 1. Temel temizlik (kriz, seçim)
-            HandleBasicNecessities(country, u);
+    // 1. Temel temizlik (kriz, seçim) — eski sistem korunuyor
+    HandleBasicNecessities(country, u);
 
-            // 2. FAZ 0: Oyuncu taktiklerini gözlemle
-            if (!country.IsPlayerControlled)
-            {
-                ObservePlayer(world, memory);
-            }
+    // 2. Oyuncu taktiklerini gözlemle
+    if (!country.IsPlayerControlled)
+    {
+        ObservePlayer(world, GetOrCreateMemory(country.Id));
+    }
 
-            // 3. FAZ 0: Utility AI ile karar ver
-                        if (SimRng.NextDouble() < 0.40)
-            {
-                PerformUtilityDecision(e, personality, memory, country);
+    // 3. YENİ: Hibrit AI Brain çalıştır
+    var btResult = brain.ProcessTurn();
+    SimLogger.Log($"[AI {country.Id}] BT sonucu: {btResult}");
 
-                // FAZ 4: Trust bazlı diplomatik kararlar
-            PerformDiplomaticDecisions(country, world);
-            }
-                        
+    // 4. Eski Utility AI da çalışsın (paralel — çakışma yok)
+    if (SimRng.NextDouble() < 0.40)
+    {
+        PerformUtilityDecision(e, brain.Personality, GetOrCreateMemory(country.Id), country);
+        PerformDiplomaticDecisions(country, world);
+    }
 
-            // 4. Hafızayı temizle (decay)
-            memory.ProcessTurn();
+    // 5. Hafıza decay
+    GetOrCreateMemory(country.Id).ProcessTurn();
 
-            // 5. Global hizalanma
-            country.GlobalAlignment += (float)(SimRng.NextDouble() * 2 - 1);
-            country.GlobalAlignment = Math.Clamp(country.GlobalAlignment, -100f, 100f);
-        }
+    // 6. Global hizalanma
+    country.GlobalAlignment += (float)(SimRng.NextDouble() * 2 - 1);
+    country.GlobalAlignment = Math.Clamp(country.GlobalAlignment, -100f, 100f);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FAZ 17: AI Brain kayıt defteri
+// ═══════════════════════════════════════════════════════════════
+private static readonly Dictionary<string, AIBrain> CountryBrains 
+    = new Dictionary<string, AIBrain>();
 
         // ============================================================
         // FAZ 0: AI HAFIZA SİSTEMİ
@@ -139,6 +148,41 @@ namespace DemocracySim.Engine.World
                     if (SimRng.NextDouble() < 0.3)
                         country.Memory.ChangeTrust(player.Id, DiplomaticMemory.SameOrg, $"Aynı örgütte ({org.Name})");
                 }
+            }
+
+            // 4) Reel-Politik: Karşılıklı Ticaret Anlaşması
+            if (player != null && country.Memory.GetTrust(player.Id) > 65f && !country.Engine.Universe.TradePartners.Contains(player.Id) && SimRng.NextDouble() < 0.25)
+            {
+                country.Engine.Universe.TradePartners.Add(player.Id);
+                player.Engine.Universe.TradePartners.Add(country.Id);
+                country.Memory.ChangeTrust(player.Id, DiplomaticMemory.TradeAgreement, "İkili Ticaret Anlaşması");
+                try { world.NotifyCountry(player, $"📈 {country.Name} ülkenizle ikili Ticaret Anlaşması imzaladı! (Ekonomik büyüme bonusu)", false); } catch { }
+                SimLogger.Log($"[Diplomasi] {country.Name} ve {player.Name} ticaret anlaşması imzaladı.");
+            }
+
+            // 5) Reel-Politik: Düşmanca Ambargo ve Yaptırım Uygulama
+            if (player != null && country.Memory.GetTrust(player.Id) < 25f && SimRng.NextDouble() < 0.20)
+            {
+                if (country.Engine.Universe.TradePartners.Contains(player.Id))
+                {
+                    country.Engine.Universe.TradePartners.Remove(player.Id);
+                    player.Engine.Universe.TradePartners.Remove(country.Id);
+                    country.Memory.ChangeTrust(player.Id, -10f, "Ticaret Anlaşması Feshedildi");
+                    try { world.NotifyCountry(player, $"⚠️ {country.Name} ülkenizle olan ticaret anlaşmasını feshetti!", true); } catch { }
+                }
+                else if (player.Engine.Universe.SanctionLevel < 80f)
+                {
+                    player.Engine.Universe.SanctionLevel = Math.Clamp(player.Engine.Universe.SanctionLevel + 5f, 0f, 100f);
+                    country.Memory.ChangeTrust(player.Id, -8f, "Ekonomik Yaptırım ve Ambargo");
+                    try { world.NotifyCountry(player, $"⚠️ {country.Name} ülkenize ekonomik yaptırım kararı aldı! (Yaptırım Seviyesi: %{player.Engine.Universe.SanctionLevel:F0})", true); } catch { }
+                }
+            }
+
+            // 6) Reel-Politik: Düşman AI İstihbari Operasyonu (İç Karışıklık)
+            if (player != null && country.Memory.GetTrust(player.Id) < 20f && SimRng.NextDouble() < 0.12)
+            {
+                player.Engine.Universe.Unrest = Math.Clamp(player.Engine.Universe.Unrest + 3.5f, 0f, 100f);
+                SimLogger.Log($"[Diplomasi] {country.Name} istihbarat operasyonuyla {player.Name} içinde sokak huzursuzluğunu kışkırttı.");
             }
         }
 

@@ -96,20 +96,62 @@ namespace DemocracySim.Engine.Core
 /// FAZ 3.5: LLM entegrasyonu için hazırlık.
 /// Şu an şablon tabanlı; LLM aktifse gerçek açıklama üretir.
 /// </summary>
-/// <summary>
-/// FAZ 3.5: LLM entegrasyonu için hazırlık.
-/// Yerel LLM aktifse açıklama üretir; değilse şablon kullanır.
-/// </summary>
-public static void RequestLLMExplanation(string prompt, Action<string> onComplete)
-{
-    if (LLMClient.IsReady)
-    {
-        LLMClient.EmbellishText(prompt, onComplete);
-        return;
-    }
+        /// <summary>
+        /// FAZ 3.5: LLM entegrasyonu. Yerel LLM aktifse açıklama üretir; değilse şablon kullanır.
+        /// </summary>
+        public static void RequestLLMExplanation(string prompt, Action<string> onComplete)
+        {
+            if (LLMClient.IsReady)
+            {
+                LLMClient.EmbellishText(prompt, onComplete);
+                return;
+            }
 
-    // Fallback: şablon tabanlı
-    onComplete?.Invoke(prompt);   // LLM yoksa şablon metin olduğu gibi kullanılır
-}
+            // Fallback: şablon tabanlı
+            onComplete?.Invoke(prompt);
+        }
+
+        /// <summary>
+        /// Yasa Meclis'te oylandığında dinamik basın ve muhalefet tepkisi üretir (LLM veya kural tabanlı).
+        /// </summary>
+        public static void GeneratePolicyPublicReaction(SimPolicy policy, bool isPassed, SimulationEngine e, Action<string> onComplete)
+        {
+            float legit = e.Legitimacy.CurrentLegitimacy;
+            float unrest = e.Universe.Unrest;
+            string outcome = isPassed ? "kabul edildi" : "reddedildi";
+
+            string fallback;
+            if (isPassed)
+            {
+                if (unrest > 50f)
+                    fallback = $"[Muhalefet]: \"{policy.Name} kararı toplumsal gerilimi tırmandırır!\"";
+                else if (legit > 60f)
+                    fallback = $"[Basın]: \"Hükümet Meclis'te güven tazeledi; {policy.Name} yürürlüğe giriyor.\"";
+                else
+                    fallback = $"[Kulis]: \"{policy.Name} yasası zorlu bir oylamayla geçti.\"";
+            }
+            else
+            {
+                fallback = $"[Muhalefet]: \"{policy.Name} tasarısının reddedilmesi iktidara açık bir uyarıdır!\"";
+            }
+
+            if (LLMClient.IsReady)
+            {
+                string prompt = $"Bir siyasi simülasyon oyununda '{policy.Name}' yasası Meclis'te {outcome}. " +
+                               $"Hükümet meşruiyeti %{legit:F0}, halk huzursuzluğu %{unrest:F0}. " +
+                               $"Muhalefet lideri veya bir gazete manşeti ağzından tek cümlelik çarpıcı bir Türkçe demeç yaz:\nManşet:";
+                LLMClient.ExplainDecision(prompt, result =>
+                {
+                    if (string.IsNullOrEmpty(result) || result.Contains("Error") || result.Contains("Exception"))
+                        onComplete?.Invoke(fallback);
+                    else
+                        onComplete?.Invoke($"[Basın]: {result.Trim()}");
+                });
+            }
+            else
+            {
+                onComplete?.Invoke(fallback);
+            }
+        }
     }
 }

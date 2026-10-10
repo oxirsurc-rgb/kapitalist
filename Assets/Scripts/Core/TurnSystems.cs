@@ -144,52 +144,125 @@ namespace DemocracySim.Engine.Core
         public void ProcessTurn(SimulationEngine e) => e.Intel.UpdateAgency(40f);
     }
 
-    /// <summary>Öncelik 85: Bakanların pasif etkileri.</summary>
+    /// <summary>Öncelik 85: Bakanların pasif etkileri (Democracy 4 & Reel Hayat Dinamikleri).</summary>
     public class MinisterPassiveSystem : ITurnSystem
     {
         public string SystemName => "MinisterPassive";
         public int Priority => 85;
         public void ProcessTurn(SimulationEngine e)
         {
-            foreach (var minister in e.Actors.Where(a => a.Role == ActorRole.Minister))
+            var ministers = e.Actors.Where(a => a.Role == ActorRole.Minister).ToList();
+            if (ministers.Count == 0 && e.CurrentRole == SimulationEngine.PlayerRole.Governing)
+            {
+                // Boş kabine cezası: bakan atanmamışsa yönetim zaafiyeti
+                e.PoliticalCapital = System.Math.Max(0f, e.PoliticalCapital - 2f);
+                return;
+            }
+
+            foreach (var minister in ministers)
             {
                 if (string.IsNullOrEmpty(minister.Portfolio)) continue;
-                float competenceFactor = minister.Competence / 100f;
+                float comp = minister.Competence / 100f;
+                float loyaltyFactor = (minister.Loyalty - 50f) / 50f; // -1 .. +1
+
+                // 1) Siyasi Sermaye Üretimi (Democracy 4 dinamiği)
+                // Yetkin ve sadık bakanlar sermaye kazandırır; yetersiz/sadakatsiz olanlar eritir.
+                float capitalDelta = (comp * 2.2f) + (loyaltyFactor * 1.2f);
+                e.PoliticalCapital = System.Math.Clamp(
+                    e.PoliticalCapital + capitalDelta, 0f, e.MaxPoliticalCapital);
+
+                // 2) Departman Spesifik Reel Etkiler
                 switch (minister.Portfolio.ToLower())
                 {
                     case "ekonomi":
-    // EK-2: Registry + null-safe
-    var gdp = e.Registry.Get(ObjectRegistry.Ids.Gdp);
-    if (gdp != null) gdp.ActualValue += competenceFactor * 0.1f;
-    break;
+                        var gdp = e.Registry.Get(ObjectRegistry.Ids.Gdp);
+                        if (gdp != null) gdp.ActualValue += comp * 0.2f;
+                        if (e.Economy != null && comp > 0.5f)
+                            e.Economy.AdjustInflation(-(comp - 0.5f) * 0.2f);
+                        break;
                     case "sağlık":
-    {
-        var obj = e.Registry.Get(ObjectRegistry.Ids.HealthcareQuality);
-        if (obj != null) obj.ActualValue += competenceFactor * 0.1f;
-    }
-    break;
-case "savunma":
-    {
-        var obj = e.Registry.Get(ObjectRegistry.Ids.MilitaryStrength);
-        if (obj != null) obj.ActualValue += competenceFactor * 0.1f;
-    }
-    break;
-case "eğitim":
-    {
-        var obj = e.Registry.Get(ObjectRegistry.Ids.EducationLevel);
-        if (obj != null) obj.ActualValue += competenceFactor * 0.1f;
-    }
-    break;
-case "adalet":
-    {
-        var obj = e.Registry.Get(ObjectRegistry.Ids.CrimeRate);
-        if (obj != null) obj.ActualValue -= competenceFactor * 0.1f;
-    }
-    break;
+                        var hq = e.Registry.Get(ObjectRegistry.Ids.HealthcareQuality);
+                        if (hq != null) hq.ActualValue += comp * 0.2f;
+                        var life = e.Registry.Get(ObjectRegistry.Ids.LifeExpectancy);
+                        if (life != null) life.ActualValue += comp * 0.1f;
+                        break;
+                    case "savunma":
+                        var mil = e.Registry.Get(ObjectRegistry.Ids.MilitaryStrength);
+                        if (mil != null) mil.ActualValue += comp * 0.2f;
+                        if (e.Army != null)
+                            e.Army.AdjustLoyalty(comp * 0.4f);
+                        break;
+                    case "eğitim":
+                        var edu = e.Registry.Get(ObjectRegistry.Ids.EducationLevel);
+                        if (edu != null) edu.ActualValue += comp * 0.2f;
+                        break;
+                    case "adalet":
+                        var crime = e.Registry.Get(ObjectRegistry.Ids.CrimeRate);
+                        if (crime != null) crime.ActualValue -= comp * 0.2f;
+                        e.CorruptionLevel = System.Math.Max(0f, e.CorruptionLevel - comp * 0.2f);
+                        break;
+                    case "içişleri":
+                        e.Universe.Unrest = System.Math.Max(0f, e.Universe.Unrest - comp * 0.3f);
+                        break;
+                    case "dışişleri":
+                        if (e.Universe.SanctionLevel > 0f)
+                            e.Universe.SanctionLevel = System.Math.Max(0f, e.Universe.SanctionLevel - comp * 0.3f);
+                        break;
+                    case "çevre":
+                        var env = e.Registry.Get(ObjectRegistry.Ids.EnvironmentQuality);
+                        if (env != null) env.ActualValue += comp * 0.25f;
+                        break;
+                    case "teknoloji":
+                        var tech = e.Registry.Get(ObjectRegistry.Ids.TechLevel);
+                        if (tech != null) tech.ActualValue += comp * 0.25f;
+                        break;
+                    case "enerji":
+                        var energy = e.Registry.Get(ObjectRegistry.Ids.EnergySecurity);
+                        if (energy != null) energy.ActualValue += comp * 0.2f;
+                        break;
                 }
-                e.PoliticalCapital = System.Math.Clamp(
-                    e.PoliticalCapital + competenceFactor * 5f, 0f, e.MaxPoliticalCapital);
+
+                // 3) Nitelik (Trait) ve Seçmen Tabanı Sempatisi (Democracy 4)
+                if (minister.Traits != null)
+                {
+                    foreach (var trait in minister.Traits)
+                    {
+                        switch (trait)
+                        {
+                            case ActorTrait.BusinessPerson:
+                                AdjustDemographic(e, "capitalists", 0.4f);
+                                AdjustDemographic(e, "workers", -0.2f);
+                                break;
+                            case ActorTrait.Activist:
+                                AdjustDemographic(e, "environmentalists", 0.5f);
+                                AdjustDemographic(e, "workers", 0.3f);
+                                AdjustDemographic(e, "capitalists", -0.3f);
+                                break;
+                            case ActorTrait.Populist:
+                                AdjustDemographic(e, "workers", 0.5f);
+                                AdjustDemographic(e, "intellectuals", -0.3f);
+                                e.Legitimacy.AdjustLegitimacy(0.2f);
+                                break;
+                            case ActorTrait.Technocrat:
+                                AdjustDemographic(e, "intellectuals", 0.5f);
+                                e.CorruptionLevel = System.Math.Max(0f, e.CorruptionLevel - 0.1f);
+                                break;
+                            case ActorTrait.Academic:
+                                AdjustDemographic(e, "intellectuals", 0.4f);
+                                break;
+                            case ActorTrait.Bureaucrat:
+                                e.Legitimacy.AdjustLegitimacy(0.15f);
+                                break;
+                        }
+                    }
+                }
             }
+        }
+
+        private static void AdjustDemographic(SimulationEngine e, string groupId, float delta)
+        {
+            var grp = e.Demographics.FirstOrDefault(g => g.Id == groupId);
+            if (grp != null) grp.AdjustSatisfaction(delta);
         }
     }
 
@@ -443,4 +516,12 @@ public class EventCheckSystem : ITurnSystem
             if (obj != null) action(obj);
         }
     }
+
+    /// <summary>FAZ 22: Piyasa dinamikleri (arz-talep-fiyat).</summary>
+public class MarketDynamicsSystem : ITurnSystem
+{
+    public string SystemName => "MarketDynamics";
+    public int Priority => 68;   // Ekonomi'den hemen önce
+    public void ProcessTurn(SimulationEngine e) => e.Market.ProcessTurn(e);
+}
 }

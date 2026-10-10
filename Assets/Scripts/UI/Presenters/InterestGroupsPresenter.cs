@@ -22,13 +22,13 @@ internal sealed class InterestGroupsPresenter : PagePresenter
 {
     if (e.InterestGroups == null || e.InterestGroups.Count == 0)
     {
-        HudKit.Label(c, "Çıkar grubu verisi yok.", 24, HudTheme.Dim);
+        HudKit.Label(c, LocalizationManager.Get("ig_no_data"), 24, HudTheme.Dim);
         return;
     }
 
-    HudKit.Label(c, "ÇIKAR GRUPLARI", 28, HudTheme.Gold, 
+    HudKit.Label(c, LocalizationManager.Get("ig_title"), 28, HudTheme.Gold, 
         TextAlignmentOptions.Left, FontStyles.Bold);
-    HudKit.Label(c, "Bu gruplar doğrudan siyasi baskı uygular. Memnuniyetlerini yüksek tut.", 
+    HudKit.Label(c, LocalizationManager.Get("ig_desc"), 
         20, HudTheme.Dim);
 
     foreach (var ig in e.InterestGroups)
@@ -41,10 +41,10 @@ internal sealed class InterestGroupsPresenter : PagePresenter
         HudKit.VStack(info.gameObject, 4, 0);
         HudKit.Size(info.gameObject, flexW: 1);
 
-        string side = ig.Ideology < -20f ? "Sol" : (ig.Ideology > 20f ? "Sağ" : "Merkez");
+        string side = ig.Ideology < -20f ? LocalizationManager.Get("ideology_left") : (ig.Ideology > 20f ? LocalizationManager.Get("ideology_right") : LocalizationManager.Get("ideology_center"));
         HudKit.Label(info, UIManager.Clean(ig.Name) + $" ({side})", 26, HudTheme.Text, 
             TextAlignmentOptions.Left, FontStyles.Bold);
-        HudKit.Label(info, $"Güç: %{ig.Power:F0}   |   Lobi Bütçesi: {ig.LobbyBudget:F0}", 
+        HudKit.Label(info, LocalizationManager.Get("ig_info_fmt", ig.Power.ToString("F0"), ig.LobbyBudget.ToString("F0")), 
             19, HudTheme.Dim);
 
         var satLabel = HudKit.Label(top, $"%{ig.Satisfaction:F0}", 32,
@@ -58,7 +58,7 @@ internal sealed class InterestGroupsPresenter : PagePresenter
         // Lobi baskısı uygula butonu (muhalefetteyken)
         if (e.CurrentRole == SimulationEngine.PlayerRole.Opposition && ig.LobbyBudget >= 20f)
         {
-            var btn = HudKit.MakeButton(card, "Lobi Baskısı Uygula (20 Bütçe)", 
+            var btn = HudKit.MakeButton(card, LocalizationManager.Get("ig_lobby_btn"), 
                 HudTheme.Action, Color.white, 20, () =>
             {
                 string msg = ig.ApplyLobbyPressure(e);

@@ -26,18 +26,16 @@ internal sealed class ShadowCabinetPresenter : PagePresenter
         var info = ui.Card(c, null);
         if (isOpposition)
         {
-            HudKit.Label(info, "GÖLGE KABİNE", 28, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
+            HudKit.Label(info, LocalizationManager.Get("shadow_title"), 28, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
             HudKit.Label(info, 
-                "Muhalefetteyken 3 gölge bakan atayabilirsin. Her biri +2 sermaye/tur üretir ve AI hükümetin yasalarını bloklar. " +
-                "İktidara gelince otomatik olarak gerçek bakan olurlar.", 
+                LocalizationManager.Get("shadow_desc_opp"), 
                 20, HudTheme.Text);
         }
         else
         {
-            HudKit.Label(info, "GÖLGE KABİNE (İKTİDAR)", 28, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
+            HudKit.Label(info, LocalizationManager.Get("shadow_title_gov"), 28, HudTheme.Gold, TextAlignmentOptions.Left, FontStyles.Bold);
             HudKit.Label(info, 
-                "Şu an iktidardasın. Gölge kabine sadece muhalefetteyken kurulabilir. " +
-                "Seçimi kaybedersen önceki gölge bakanların devreye girer.", 
+                LocalizationManager.Get("shadow_desc_gov"), 
                 20, HudTheme.Dim);
         }
 
@@ -45,7 +43,7 @@ internal sealed class ShadowCabinetPresenter : PagePresenter
         var sc = e.ShadowCab;
         if (sc != null && sc.Members.Count > 0)
         {
-            var membersCard = ui.Card(c, $"MEVCUT GÖLGE BAKANLAR ({sc.Members.Count}/3)");
+            var membersCard = ui.Card(c, LocalizationManager.Get("shadow_current_fmt", sc.Members.Count));
             foreach (var m in sc.Members)
             {
                 var row = HudKit.NewRect(membersCard, "ShadowRow");
@@ -61,13 +59,13 @@ internal sealed class ShadowCabinetPresenter : PagePresenter
                 HudKit.Label(infoBox, $"{m.Portfolio}: {UIManager.Clean(m.Name)}", 24, HudTheme.Text, 
                     TextAlignmentOptions.Left, FontStyles.Bold);
                 HudKit.Label(infoBox, 
-                    $"Yetkinlik %{m.Competence:F0}   |   Medya %{m.MediaSkill:F0}   |   Sadakat %{m.Loyalty:F0}", 
+                    LocalizationManager.Get("shadow_stats_fmt", m.Competence.ToString("F0"), m.MediaSkill.ToString("F0"), m.Loyalty.ToString("F0")), 
                     18, HudTheme.Dim);
 
                 // Görevden al butonu
                 if (isOpposition)
                 {
-                    var btnDismiss = HudKit.MakeButton(top, "Görevden Al (-10)", HudTheme.Bad, Color.white, 18, () =>
+                    var btnDismiss = HudKit.MakeButton(top, LocalizationManager.Get("shadow_dismiss"), HudTheme.Bad, Color.white, 18, () =>
                     {
                         string msg = e.ShadowCab.DismissShadowMinister(m.Id, e);
                         ui.WriteLog(msg);
@@ -81,26 +79,27 @@ internal sealed class ShadowCabinetPresenter : PagePresenter
 
             // Ekstra bilgi
             HudKit.Label(membersCard, 
-                $"Tur başına bonus: +{sc.Members.Count * 2} siyasi sermaye", 
+                LocalizationManager.Get("shadow_bonus_fmt", sc.Members.Count * 2), 
                 19, HudTheme.Good);
         }
 
         // Atama butonları (sadece muhalefetteyken)
         if (isOpposition && sc != null && sc.Members.Count < 3)
         {
-            var appointCard = ui.Card(c, "YENİ GÖLGE BAKAN ATA");
+            var appointCard = ui.Card(c, LocalizationManager.Get("shadow_appoint_card"));
             HudKit.Label(appointCard, 
-                $"Maliyet: {ShadowCabinet.AppointmentCost:F0} siyasi sermaye (şu an: {e.PoliticalCapital:F0})", 
+                LocalizationManager.Get("shadow_cost_fmt", ShadowCabinet.AppointmentCost.ToString("F0"), e.PoliticalCapital.ToString("F0")), 
                 20, HudTheme.Dim);
 
             string[] portfolios = { "Ekonomi", "Adalet", "Sosyal" };
+            Func<string,string> PortfolioLabel = pf => pf == "Ekonomi" ? LocalizationManager.Get("pf_economy") : (pf == "Adalet" ? LocalizationManager.Get("pf_justice") : (pf == "Sosyal" ? LocalizationManager.Get("pf_social") : pf));
             foreach (var p in portfolios)
             {
                 // Bu portföy zaten dolu mu?
                 bool occupied = sc.Members.Any(m => m.Portfolio == p);
                 if (occupied) continue;
 
-                var btn = HudKit.MakeButton(appointCard, $"{p} Portföyüne Ata", 
+                var btn = HudKit.MakeButton(appointCard, LocalizationManager.Get("shadow_appoint_btn_fmt", PortfolioLabel(p)), 
                     HudTheme.Action, Color.white, 22, () =>
                 {
                     string msg = e.ShadowCab.AppointShadowMinister(p, e);

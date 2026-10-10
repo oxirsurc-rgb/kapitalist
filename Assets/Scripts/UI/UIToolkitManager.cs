@@ -23,6 +23,12 @@ namespace DemocracySim.Engine.UI
             }
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            // Sayfa geçiş butonlarını bağla
+root?.Q<Button>("btn-next-turn")?.RegisterCallback<ClickEvent>(evt =>
+{
+    var gm = FindAnyObjectByType<GameManager>();
+    if (gm != null) gm.NextTurn();
+});
         }
 
         public VisualElement root => rootDocument != null ? rootDocument.rootVisualElement : null;

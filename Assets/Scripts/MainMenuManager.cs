@@ -147,6 +147,8 @@ CreateButton(btnContainerGO.transform, LocalizationManager.Get("demo_game").ToUp
 CreateButton(btnContainerGO.transform, LocalizationManager.Get("credits").ToUpper(), OnCredits, true);
 CreateButton(btnContainerGO.transform, LocalizationManager.Get("settings").ToUpper(), () => _onSettingsAction?.Invoke(), true);
 CreateButton(btnContainerGO.transform, LocalizationManager.Get("quit").ToUpper(), OnQuit, true);
+CreateButton(btnContainerGO.transform, "HOT-SEAT", OnHotSeat, true);
+CreateButton(btnContainerGO.transform, "PBEM", OnPBEM, true);
 
         // 9) Alt bilgi — versiyon
         var versionGO = new GameObject("Version", typeof(RectTransform));
@@ -219,6 +221,14 @@ CreateButton(btnContainerGO.transform, LocalizationManager.Get("quit").ToUpper()
         if (onClick != null) btn.onClick.AddListener(onClick);
         return btn;
     }
+    void OnPBEM()
+{
+    AudioManager.Instance?.PlayClick();
+    GameManager.LoadSaveOnStart = false;
+    PlayerPrefs.SetInt("StartPBEM", 1);
+    PlayerPrefs.Save();
+    SceneManager.LoadScene(gameplaySceneName);
+}
 
     private void BuildStatsPanel()
     {
@@ -281,6 +291,15 @@ CreateButton(btnContainerGO.transform, LocalizationManager.Get("quit").ToUpper()
         GameManager.LoadSaveOnStart = true;
         SceneManager.LoadScene(gameplaySceneName);
     }
+    void OnHotSeat()
+{
+    AudioManager.Instance?.PlayClick();
+    GameManager.LoadSaveOnStart = false;
+    SceneManager.LoadScene(gameplaySceneName);
+    // Oyun başladıktan sonra otomatik lobi açılır (PlayerPrefs ile işaret)
+    PlayerPrefs.SetInt("StartHotSeat", 1);
+    PlayerPrefs.Save();
+}
 
     void OnDemoGame()
     {

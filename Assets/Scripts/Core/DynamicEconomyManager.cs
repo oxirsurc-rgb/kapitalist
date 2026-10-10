@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System;
+using DemocracySim.Engine.Core;
 
 namespace DemocracySim.Engine.Core
 {
@@ -35,20 +36,18 @@ namespace DemocracySim.Engine.Core
             }
         }
 
-        public void UpdateEconomy()
-        {
-            foreach (var sector in sectors)
-            {
-                // Dinamik Fiyatlandırma: Talep > Arz ise fiyat artar
-                float ratio = sector.demand / Math.Max(sector.currentOutput, 1f);
-                sector.priceMultiplier = Mathf.Clamp(ratio, 0.5f, 2.5f);
-
-                // Üretim kapasitesini güncelle (Siyasi kararlara göre)
-                sector.currentOutput = sector.productionCapacity * (1f + UnityEngine.Random.Range(-0.05f, 0.05f));
-            }
-            
-            EventBus.Publish(new EconomyUpdatedEvent());
-        }
+       // ✅ YENİ:
+public void UpdateEconomy()
+{
+    var rng = KapitalistRng.For("dynamic_economy");
+    foreach (var sector in sectors)
+    {
+        float ratio = sector.demand / Math.Max(sector.currentOutput, 1f);
+        sector.priceMultiplier = Mathf.Clamp(ratio, 0.5f, 2.5f);
+        sector.currentOutput = sector.productionCapacity * (1f + rng.Range(-0.05f, 0.05f));
+    }
+    EventBus.Publish(new EconomyUpdatedEvent());
+}
     }
 
     public struct EconomyUpdatedEvent { }

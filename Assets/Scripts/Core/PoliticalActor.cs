@@ -6,7 +6,19 @@ namespace DemocracySim.Engine.Core
 {
     public enum ActorRole { Minister, OppositionLeader, MP, Activist, Oligarch }
     public enum PoliticalFaction { Technocrat, Ideologue, Loyalist }
-    public enum ActorTrait { Ambitious, Populist, Cautious, Corrupt, LoyalistsHeart }
+    public enum ActorTrait 
+    { 
+        Ambitious, 
+        Populist, 
+        Cautious, 
+        Corrupt, 
+        LoyalistsHeart,
+        BusinessPerson,
+        Activist,
+        Technocrat,
+        Academic,
+        Bureaucrat
+    }
 
     public class PoliticalActor
     {
@@ -16,6 +28,7 @@ namespace DemocracySim.Engine.Core
         public ActorRole Role { get; set; }
         public PoliticalFaction Faction { get; set; }
         public List<ActorTrait> Traits { get; set; } = new List<ActorTrait>();
+        public string BackgroundTrait { get; set; } = "";
         public float Ideology { get; set; } 
         public float Ambition { get; set; } 
                 public string Portfolio { get; set; } = "";

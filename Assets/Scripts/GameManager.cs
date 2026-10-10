@@ -9,10 +9,15 @@ using DemocracySim.Engine.Core;
 using DemocracySim.Engine.Data;
 using DemocracySim.Engine.World;
 using DemocracySim.Engine.Legislative;
+using DemocracySim.Engine.Core.Multiplayer;
 
 public class GameManager : MonoBehaviour
 {
     public enum GameState { Selection, Gameplay }
+    // FAZ 23.1: Hot-Seat
+public HotSeatController HotSeat { get; private set; }
+private HotSeatUIPanel _hotSeatUI;
+private PBEMUIPanel _pbemUI;
     public GameState currentState = GameState.Selection;
 
      [Header("Core Systems")]
@@ -45,10 +50,22 @@ private float NeutralizeRivalCost => Cfg.NeutralizeRivalCost;
 private float ScandalCost => Cfg.ScandalCost;
 private const string MainMenuSceneName = "MainMenu";
 
+    public static GameManager Instance { get; private set; }
     private bool gameOver = false;
 
     void Awake()
     {
+        Instance = this;
+
+    if (AudioManager.Instance == null)
+    {
+        var audioGO = new GameObject("AudioManager");
+        audioGO.AddComponent<AudioManager>();
+        Debug.Log("[GameManager] AudioManager otomatik oluşturuldu.");
+    }
+
+
+
         SimLogger.OnLog = (msg, level) => {
     switch(level) {
         case SimLogger.LogLevel.Error: UnityEngine.Debug.LogError(msg); break;
@@ -87,6 +104,14 @@ if (PlayerPrefs.GetInt("StartDemo", 0) == 1)
     PlayerPrefs.Save();
     StartDemo();
 }
+// FAZ 23.1: Hot-Seat UI panel
+var hotSeatGO = new GameObject("HotSeatUIPanel");
+hotSeatGO.transform.SetParent(transform.parent, false);
+_hotSeatUI = hotSeatGO.AddComponent<HotSeatUIPanel>();
+// FAZ 23.2: PBEM UI panel
+var pbemGO = new GameObject("PBEMUIPanel");
+pbemGO.transform.SetParent(transform.parent, false);
+_pbemUI = pbemGO.AddComponent<PBEMUIPanel>();
     }
         /// <summary>FAZ 2.5: AI ülke için rastgele bakan isimleri üret.</summary>
     void RandomizeAIMinisters(Country ai, CountryProfile profile)
@@ -120,14 +145,37 @@ var rng = new System.Random(stableSeed);   // Ülkeye özgü deterministik seed
     }
 
     void OnApplicationQuit()
+{
+    if (currentState == GameState.Gameplay && !gameOver && world != null && playerCountry != null)
     {
-        if (currentState == GameState.Gameplay && !gameOver && world != null && playerCountry != null)
-            SaveLoadManager.SaveGame(world, playerCountry);
+        SaveLoadManager.SaveGame(world, playerCountry);
+
+        // Hot-Seat veya PBEM ise oturumu da kaydet
+        if (SessionManager.ActiveSession != null && !SessionManager.ActiveSession.IsSingle)
+        {
+            SessionManager.SaveSession("autosave.session.json");
+        }
+    }
+    SessionManager.EndSession();
     }
 
     void WireGameplayButtons()
     {
-        if (ui.nextTurnButton != null) ui.nextTurnButton.onClick.AddListener(NextTurn);
+        if (ui.nextTurnButton != null)
+        {
+            ui.nextTurnButton.onClick.AddListener(() =>
+            {
+                var net = DemocracySim.Engine.Core.Multiplayer.Online.DemocracyNetworkManager.Instance;
+                if (net != null && net.IsOnlineActive)
+                {
+                    net.SendTurnFinished(playerCountry.Engine.CurrentTurn);
+                    ui.nextTurnButton.interactable = false;
+                    ui.Notify("[ÇEVRİM İÇİ] Turunuz tamamlandı. Diğer oyuncular bekleniyor...", false);
+                    return;
+                }
+                NextTurn();
+            });
+        }
         if (ui.intelButton != null) ui.intelButton.onClick.AddListener(() => OnStartSecretOp(0));
         if (ui.sabotageButton != null) ui.sabotageButton.onClick.AddListener(() => OnStartSecretOp(1));
         if (ui.manipulateButton != null) ui.manipulateButton.onClick.AddListener(() => OnStartSecretOp(2));
@@ -407,7 +455,8 @@ public void SelectCountry(int index)
 
 void StartGame(CountryProfile profile, Scenario scenario = null)
 {
-
+SessionManager.EndSession();
+    HotSeat = null;
 // FAZ 5: Oyun istatistiği
 if (!LoadSaveOnStart)
     DemocracySim.Engine.Data.GlobalStatsTracker.IncrementGamesPlayed();
@@ -450,6 +499,29 @@ if (!LoadSaveOnStart)
     {
         obj.ActualValue = kv.Value;
         obj.EquilibriumValue = kv.Value;
+    }
+}
+// EK-33: Engine direkt override'lar (Army, Intel vb.)
+foreach (var kv in scenario.EngineOverrides)
+{
+    switch (kv.Key)
+    {
+        case "ArmySatisfaction":
+            playerCountry.Engine.Army.LoadState(
+                kv.Value, 
+                playerCountry.Engine.Army.MilitaryStrength,
+                playerCountry.Engine.Army.LoyaltyToLeader);
+            break;
+        case "LoyaltyToLeader":
+            playerCountry.Engine.Army.LoadState(
+                playerCountry.Engine.Army.ArmySatisfaction,
+                playerCountry.Engine.Army.MilitaryStrength,
+                kv.Value);
+            break;
+        case "CoupRiskPercent":
+            // CoupRiskPercent set edilemiyor (private set), ama LoadState sonrası
+            // UpdateArmy çağrılana kadar bekleyelim, o hesaplar
+            break;
     }
 }
     
@@ -529,6 +601,18 @@ switch (LLMClient.State)
         // 6) OTOMATİK KAYIT
         // ============================================================
                 SaveLoadManager.SaveGame(world, playerCountry);
+                if (PlayerPrefs.GetInt("StartHotSeat", 0) == 1)
+{
+    PlayerPrefs.SetInt("StartHotSeat", 0);
+    PlayerPrefs.Save();
+    StartHotSeatLobby();
+}
+if (PlayerPrefs.GetInt("StartPBEM", 0) == 1)
+{
+    PlayerPrefs.SetInt("StartPBEM", 0);
+    PlayerPrefs.Save();
+    if (_pbemUI != null) _pbemUI.Show();
+}
     }
 
     // =====================================================================
@@ -1579,6 +1663,32 @@ engine.Campaign.InvestInGroup(group.Id, finalInvest);
     public void NextTurn()
     {
                if (gameOver) return;
+               // Hot-Seat / PBEM modunda sıra yönetimi
+// Hot-Seat / PBEM modunda sıra yönetimi
+// NOT: HotSeat null olabilir (eski oturum kalıntısı) — null check zorunlu
+if (SessionManager.ActiveSession != null 
+    && !SessionManager.ActiveSession.IsSingle 
+    && HotSeat != null)
+{
+    if (SessionManager.ActiveSession.IsHotSeat)
+    {
+        HotSeat.RequestNextPlayer();
+        return;
+    }
+    else if (SessionManager.ActiveSession.IsPBEM)
+    {
+        HotSeat.RequestNextPlayer();
+        SessionManager.SaveSession("pbem_turn.json");
+        ui.WriteLog("💾 Oturum kaydedildi. Bu dosyayı sıradaki oyuncuya gönderin: pbem_turn.json");
+        return;
+    }
+}
+else if (SessionManager.ActiveSession != null && !SessionManager.ActiveSession.IsSingle && HotSeat == null)
+{
+    // Eski oturum kalıntısı — temizle
+    Debug.LogWarning("[GameManager] Eski oturum kalıntısı temizlendi.");
+    SessionManager.EndSession();
+}
 
         // AI ülkeler ve küresel olaylar (oyuncunun ülkesini işlemez)
         world.ProcessWorldTurn();
@@ -1609,7 +1719,14 @@ engine.Campaign.InvestInGroup(group.Id, finalInvest);
             ui.WriteLog($"📊 Muhalefet baskısı: %{dynamicPressure:F0}");
         
         foreach (var p in new List<SimPolicy>(simEngine.ProposedPolicies))
+        {
             simEngine.ResolveVote(p.Id, dynamicPressure);
+            bool isPassed = p.IsActive || simEngine.Universe.Pending.Any(x => x.PolicyId == p.Id);
+            AIDecisionExplainer.GeneratePolicyPublicReaction(p, isPassed, simEngine, reaction =>
+            {
+                if (!string.IsNullOrEmpty(reaction)) ui.WriteLog(reaction);
+            });
+        }
     }
 
         ProcessPendingPolicies(); // Bürokrasideki yasaları ilerlet
@@ -1677,6 +1794,7 @@ if (report.Count > 0 && Time.frameCount % 10 == 0)   // Her 10 turda bir
     Debug.Log(sb.ToString());
 }
 #endif
+    if (ui.nextTurnButton != null && !gameOver) ui.nextTurnButton.interactable = true;
     }
 
         private void HandleElectionEnd()
@@ -1775,6 +1893,157 @@ return true;
             ui.ShowFramePicker(policy.Name, amount, (frame) => ProposePolicy(policyId, amount, frame));
         }
     }
+    /// <summary>FAZ 23.1: Ana menüden çağrılır — Hot-Seat lobisi açar.</summary>
+public void StartHotSeatLobby()
+{
+    if (_hotSeatUI == null)
+    {
+        Debug.LogError("[HotSeat] UI panel yok!");
+        return;
+    }
+
+    var countries = availableCountries.Select(c => c.name).ToList();
+    _hotSeatUI.ShowLobby(2, countries, OnHotSeatSessionCreated);
+}
+
+private void OnHotSeatSessionCreated(SessionData session)
+{
+    // Seed'i uygula
+    KapitalistRng.Initialize(session.MasterSeed);
+
+    // Tüm oyuncuların CountryName → CountryId eşleşmesini düzelt
+    foreach (var slot in session.Players)
+    {
+        var prof = availableCountries.FirstOrDefault(c =>
+            c.name == slot.CountryName ||
+            c.id == slot.CountryId ||
+            c.name == slot.CountryId ||
+            c.id == slot.CountryName);
+
+        if (prof != null)
+        {
+            slot.CountryId = prof.id;
+            slot.CountryName = prof.name;
+        }
+        else
+        {
+            Debug.LogError($"[HotSeat] Profil bulunamadı: {slot.CountryName} / {slot.CountryId}");
+        }
+    }
+
+    var firstPlayer = session.Players[0];
+    var profile = availableCountries.FirstOrDefault(c => c.id == firstPlayer.CountryId);
+
+    if (profile == null)
+    {
+        Debug.LogError($"[HotSeat] İlk oyuncunun ülkesi bulunamadı: {firstPlayer.CountryName}");
+        return;
+    }
+
+    // Oyunu başlat
+    var scenario = DemocracySim.Engine.World.Scenario.GetPresets()[0];
+    StartGame(profile, scenario);
+
+    // Hot-Seat koordinatörünü başlat
+    SessionManager.StartTurnCoordination(world);
+    HotSeat = new HotSeatController(world);
+
+    // Pass screen gösterildiğinde UI aç
+    HotSeat.OnShowPassScreen += (nextPlayer) =>
+    {
+        _hotSeatUI.ShowPassScreen(nextPlayer, () =>
+        {
+            // Oyuncu "HAZIRIM" tıkladı → HotSeat'e bildir
+            HotSeat.ConfirmPlayerReady();
+        });
+    };
+
+    // Sıra başladığında UI'ı yeni oyuncuya göre tazele
+    HotSeat.OnTurnStarted += (player) =>
+    {
+        OnHotSeatTurnStart(player);
+    };
+
+    HotSeat.OnRoundCompleted += (turn) =>
+    {
+        ui.WriteLog($"=== Tur {turn} tamamlandı, yeni tur başlıyor ===");
+    };
+
+    // İlk oyuncunun pass screen'ini göster
+    _hotSeatUI.ShowPassScreen(session.Players[0], () =>
+    {
+        HotSeat.ConfirmPlayerReady();
+    });
+}
+
+// =====================================================================
+// FAZ 23.1: Hot-Seat — sıradaki oyuncunun turunu başlat
+// =====================================================================
+private void OnHotSeatTurnStart(PlayerSlot player)
+{
+    if (player == null)
+    {
+        Debug.LogError("[HotSeat] OnHotSeatTurnStart: player null!");
+        return;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 1) Oyuncunun ülkesini bul (ID / Name arasında esnek eşleşme)
+    // ─────────────────────────────────────────────────────────────
+    var foundCountry = world.Countries.FirstOrDefault(c =>
+        c.Id == player.CountryId ||
+        c.Name == player.CountryName ||
+        c.Name == player.CountryId ||
+        c.Id == player.CountryName ||
+        c.Name.Equals(player.CountryId,   StringComparison.OrdinalIgnoreCase) ||
+        c.Name.Equals(player.CountryName, StringComparison.OrdinalIgnoreCase));
+
+    if (foundCountry == null)
+    {
+        Debug.LogError($"[HotSeat] Ülke bulunamadı: '{player.CountryId}' / '{player.CountryName}'");
+        Debug.LogError($"[HotSeat] Mevcut ülkeler: " +
+            string.Join(", ", world.Countries.Select(c => $"{c.Id}={c.Name}")));
+        return;
+    }
+
+    SimLogger.Log($"[HotSeat] Aktif ülke: {foundCountry.Name} ({foundCountry.Id})");
+
+    // ─────────────────────────────────────────────────────────────
+    // 2) KRİTİK: sınıf field'ını güncelle (local var field'ı gölgeliyor!)
+    //    Bunu yapmazsak NextTurn() hep eski oyuncunun ülkesini işler.
+    // ─────────────────────────────────────────────────────────────
+    this.playerCountry = foundCountry;
+    this.playerCountry.Engine.IsPlayerCountry = true;
+
+    // ─────────────────────────────────────────────────────────────
+    // 3) UI'ı yeni aktif oyuncuya göre tazele
+    // ─────────────────────────────────────────────────────────────
+    ui.PopulateCountryDropdown(world.Countries, playerCountry);
+
+    // Politika listesini bu oyuncunun ülkesine göre yeniden çiz
+    var policies = playerCountry.Engine.AllObjects
+        .OfType<SimPolicy>()
+        .ToList();
+    ui.RefreshPolicyList(policies, ChangePolicyValue, RequestMinisterAdvice);
+
+    // Kabine olay yayınını yeniden bağla (yeni ülkenin engine'i için)
+    playerCountry.Engine.Cabinet.OnCabinetEvent =
+        (msg, isWarn) => ui.Notify(msg, isWarn);
+
+    // ─────────────────────────────────────────────────────────────
+    // 4) Sıradaki oyuncu için bilgilendirme + dashboard
+    // ─────────────────────────────────────────────────────────────
+    ui.WriteLog($"▶️ Sıra: {player.PlayerName} — {playerCountry.Name}");
+    ui.Notify($"{player.PlayerName}, sıra sende!", false);
+
+    UpdateUI();
+    RunTutorial();
+
+    // ─────────────────────────────────────────────────────────────
+    // 5) Otomatik kayıt (hot-seat'te her oyuncu geçişinde)
+    // ─────────────────────────────────────────────────────────────
+    SaveLoadManager.SaveGame(world, playerCountry);
+}
 
     public void ProposePolicy(string policyId, float amount, string selectedFrame)
     {

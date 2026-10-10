@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DemocracySim.Engine.Core;
+using DemocracySim.Engine.World;
 
 namespace DemocracySim.Engine.World
 {
@@ -12,6 +13,7 @@ namespace DemocracySim.Engine.World
         // aynı seed'i aldıkları için "rastgele" davranış deterministik oluyordu.
 
         public List<Country> Countries { get; set; } = new List<Country>();
+    
         public DiplomacyManager Diplomacy { get; set; } = new DiplomacyManager();
         public GlobalCrisisManager GlobalCrisis { get; set; } = new GlobalCrisisManager();
         public List<GlobalOrganization> Organizations { get; set; } = new List<GlobalOrganization>();
@@ -179,7 +181,17 @@ public void AddGdp(Country c, float delta)
             {
                 c.Memory.ProcessTurn(GlobalTurn);
             }
+
+                // FAZ 17: AI Director — küresel zorluk
+if (Director == null) Director = new AIDirector();
+Director.ProcessTurn(this);
+
+foreach (var c in Countries.Where(c => !c.IsPlayerControlled))
+{
+    c.Engine.Universe.GlobalGrowthModifier *= Director.GetAIStatMultiplier();
+}
         }
+        public AIDirector Director { get; set; }
 
         private void ProcessOrganizationDynamics()
         {

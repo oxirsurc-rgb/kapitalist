@@ -105,7 +105,7 @@ public static class HudKit
     {
         var rt = NewRect(parent, "Text");
         var t = rt.gameObject.AddComponent<TextMeshProUGUI>();
-        t.text = text;
+        t.text = UIManager.Clean(text);
         t.fontSize = size;
         t.color = color;
         t.alignment = align;
@@ -204,9 +204,16 @@ public static class HudKit
 
         var txt = Label(img.transform, label, fontSize, fg, TextAlignmentOptions.Center, FontStyles.Bold);
         Fill(txt.rectTransform, 10, 4, 10, 4);
-
         Size(img.gameObject, prefH: height, minH: height);
-        if (onClick != null) btn.onClick.AddListener(() => onClick());
+
+        if (onClick != null)
+        {
+            btn.onClick.AddListener(() =>
+            {
+                AudioManager.Instance?.PlayClick();
+                onClick();
+            });
+        }
         return btn;
     }
 
